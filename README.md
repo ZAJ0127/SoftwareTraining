@@ -15,8 +15,8 @@ A phone-friendly practice app for learning C++ through short themed lessons and 
 | --- | --- |
 | `index.html`, `styles.css`, `app.js` | The app |
 | `runner.js` | Talks to the online compilers |
-| `content/index.js` | Chapter list |
-| `content/chNN.js` | Lessons and challenges for one chapter |
+| `content/index.js` | Tracks and their chapter lists |
+| `content/chNN.js`, `content/eN.js` | Lessons and challenges for one C++ chapter or engineering unit |
 | `sw.js`, `manifest.webmanifest`, `icon-*.png` | Install and offline support |
 | `tools/verify-content.mjs` | Compiles every example and solution to check the content |
 

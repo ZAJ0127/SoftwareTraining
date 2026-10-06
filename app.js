@@ -1,7 +1,7 @@
-import { chapters } from './content/index.js';
+import { tracks } from './content/index.js';
 import { runCpp, normalize } from './runner.js';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const STORE_KEY = 'codedojo.v1';
 
 /* ---------- small helpers ---------- */
@@ -72,7 +72,7 @@ function hashString(s) {
 
 /* ---------- saved progress ---------- */
 
-const blank = () => ({ v: 1, lessons: {}, done: {}, review: {}, days: [], code: {}, hints: {}, daily: null });
+const blank = () => ({ v: 1, lessons: {}, done: {}, review: {}, days: [], code: {}, hints: {}, daily: null, tab: 'cpp' });
 let state = blank();
 try {
   const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
@@ -105,24 +105,26 @@ let allChallenges = [];
 
 async function loadContent() {
   const out = [];
-  for (const ch of chapters) {
-    if (!ch.load) continue;
-    try {
-      const data = (await ch.load()).default;
-      out.push({ ...ch, ...data });
-    } catch (err) {
-      console.warn('Could not load chapter', ch.num, err);
+  for (const track of tracks) {
+    for (const ch of track.chapters) {
+      if (!ch.load) continue;
+      try {
+        const data = (await ch.load()).default;
+        out.push({ ...ch, ...data, track: track.id, unit: track.unit });
+      } catch (err) {
+        console.warn('Could not load', ch.num, err);
+      }
     }
   }
   loaded = out;
-  allLessons = out.flatMap((c) => c.lessons.map((l) => ({ ...l, chapter: c.num })));
+  allLessons = out.flatMap((c) => c.lessons.map((l, i) => ({ ...l, chapter: c.num, track: c.track, unit: c.unit, n: i + 1, of: c.lessons.length })));
   allChallenges = out.flatMap((c) => c.challenges.map((x) => ({ ...x, chapter: c.num })));
   lessonById = Object.fromEntries(allLessons.map((l) => [l.id, l]));
   challengeById = Object.fromEntries(allChallenges.map((c) => [c.id, c]));
 }
 
-const KIND = { write: 'Write code', bughunt: 'Bug hunt', predict: 'Read the code' };
-const nextLesson = () => allLessons.find((l) => !state.lessons[l.id]);
+const KIND = { write: 'Write code', bughunt: 'Bug hunt', predict: 'Read the code', project: 'Mini project' };
+const nextLesson = (trackId) => allLessons.find((l) => !state.lessons[l.id] && (!trackId || l.track === trackId));
 const dueReviews = () => {
   const t = dayKey();
   return Object.entries(state.review).filter(([id, due]) => due <= t && challengeById[id]).map(([id]) => challengeById[id]);
@@ -132,7 +134,7 @@ const dueReviews = () => {
 function dailyChallenge() {
   const t = dayKey();
   if (state.daily && state.daily.date === t && challengeById[state.daily.id]) return challengeById[state.daily.id];
-  const pool = allChallenges.filter((c) => !state.done[c.id] && state.lessons[c.lesson]);
+  const pool = allChallenges.filter((c) => !state.done[c.id] && state.lessons[c.lesson] && c.kind !== 'project');
   if (!pool.length) return null;
   const pick = pool[hashString(t) % pool.length];
   state.daily = { date: t, id: pick.id };
@@ -260,10 +262,12 @@ function challengeRow(c) {
     h('span', { class: 'grow' }, c.title, h('div', { class: 'sub' }, `${KIND[c.kind]} · ${c.character}`)),
     h('span', { class: 'sub' }, c.level));
 }
-function lessonRow(l, n) {
+function lessonRow(lesson, withUnit) {
+  const l = lessonById[lesson.id];
   return h('a', { class: 'item', href: '#/lesson/' + l.id },
     statusIcon(state.lessons[l.id] ? 'done' : 'todo'),
-    h('span', { class: 'grow' }, l.title, h('div', { class: 'sub' }, `Lesson ${n} · ${l.character}`)));
+    h('span', { class: 'grow' }, l.title,
+      h('div', { class: 'sub' }, `${withUnit ? `${l.unit} ${l.chapter} · ` : ''}Lesson ${l.n} · ${l.character}`)));
 }
 function chapterProgress(ch) {
   const total = ch.lessons.length + ch.challenges.length;
@@ -285,7 +289,9 @@ function viewToday() {
   }
 
   const daily = dailyChallenge();
-  const next = nextLesson();
+  const nexts = tracks.map((t) => nextLesson(t.id)).filter(Boolean);
+  const next = nexts[0];
+  const more = daily ? nexts : nexts.slice(1);
   let main;
   if (daily) {
     const solved = !!state.done[daily.id];
@@ -311,7 +317,7 @@ function viewToday() {
   } else {
     main = h('section', { class: 'card' },
       h('h1', { class: 'h-title' }, 'All caught up'),
-      h('p', { class: 'soft' }, 'You have finished every lesson and challenge that is available. New chapters arrive when the app is updated. Until then, anything on the Track tab can be replayed.'),
+      h('p', { class: 'soft' }, 'You have finished every lesson and challenge that is available. New chapters arrive when the app is updated. Until then, anything on the Tracks tab can be replayed.'),
       h('a', { class: 'btn', href: '#/track' }, 'Browse the track'));
   }
 
@@ -324,25 +330,26 @@ function viewToday() {
       h('div', { class: 'pill' }, h('span', { style: 'color: var(--warn); display: inline-flex' }, icon('flame', 16)), `${s} day streak`)),
     h('div', { class: 'week' }, week),
     main,
-    daily && next ? h('section', { class: 'stack' },
+    more.length ? h('section', { class: 'stack' },
       h('h2', { class: 'h-section' }, 'Continue learning'),
-      lessonRow(next, allLessons.findIndex((l) => l.id === next.id) + 1)) : null,
+      h('div', { class: 'list' }, more.map((l) => lessonRow(l, true)))) : null,
     reviews.length ? h('section', { class: 'stack' },
       h('h2', { class: 'h-section' }, 'Due for review'),
       h('p', { class: 'note' }, 'Challenges you needed help with come back after two days.'),
       h('div', { class: 'list' }, reviews.map(challengeRow))) : null,
     h('section', { class: 'stack' },
-      h('h2', { class: 'h-section' }, 'Your track'),
+      h('h2', { class: 'h-section' }, 'Your tracks'),
       loaded.map((ch) => {
         const p = chapterProgress(ch);
-        return h('a', { class: 'item', href: '#/track', style: 'flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 16px' },
-          h('div', { class: 'row between' }, h('span', null, `${ch.num}. ${ch.title}`), h('span', { class: 'sub' }, `${p.done} of ${p.total}`)),
+        return h('a', { class: 'item', href: '#/track', onclick: () => { state.tab = ch.track; save(); }, style: 'flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 16px' },
+          h('div', { class: 'row between' }, h('span', null, `${ch.unit} ${ch.num}: ${ch.title}`), h('span', { class: 'sub' }, `${p.done} of ${p.total}`)),
           h('div', { class: 'bar' }, h('div', { style: `width: ${p.pct}%` })));
       })));
 }
 
 function viewTrack() {
-  const rows = chapters.map((ch) => {
+  const track = tracks.find((t) => t.id === state.tab) || tracks[0];
+  const rows = track.chapters.map((ch) => {
     const data = loaded.find((c) => c.num === ch.num);
     if (!data) {
       return h('div', { class: 'item plain' },
@@ -356,16 +363,22 @@ function viewTrack() {
         h('span', { class: 'small muted' }, `${p.done} of ${p.total}`)),
       h('div', { class: 'bar' }, h('div', { style: `width: ${p.pct}%` })),
       h('div', { class: 'group-label' }, 'Lessons'),
-      data.lessons.map((l, i) => lessonRow(l, i + 1)),
+      data.lessons.map((l) => lessonRow(l)),
       h('div', { class: 'group-label' }, 'Challenges'),
       data.challenges.map(challengeRow));
   });
   put(app, 
-    h('header', { class: 'stack-sm' },
-      h('div', { class: 'h-page' }, 'C++ track'),
-      h('div', { class: 'small muted' }, 'Chapters follow the order of ',
-        h('a', { href: 'https://www.learncpp.com/', target: '_blank', rel: 'noopener' }, 'LearnCpp.com'),
-        '. Nothing is locked, so skip ahead whenever a topic is review.')),
+    h('header', { class: 'stack' },
+      h('div', { class: 'h-page' }, 'Tracks'),
+      h('div', { class: 'seg', role: 'group', 'aria-label': 'Track' }, tracks.map((t) => h('button', {
+        type: 'button', 'aria-pressed': String(t.id === track.id),
+        onclick: () => { state.tab = t.id; save(); viewTrack(); },
+      }, t.title))),
+      track.id === 'cpp'
+        ? h('div', { class: 'small muted' }, 'The language itself. Chapters follow the order of ',
+          h('a', { href: 'https://www.learncpp.com/', target: '_blank', rel: 'noopener' }, 'LearnCpp.com'),
+          '. Nothing is locked, so skip ahead whenever a topic is review.')
+        : h('div', { class: 'small muted' }, 'The habits and bigger-picture knowledge that make an engineer reliable, and that interviews test: debugging, testing, design, data structures and how software gets built. Unit E1 needs only C++ chapter 1.')),
     h('div', { class: 'list' }, rows));
 }
 
@@ -410,7 +423,7 @@ function viewLesson(id) {
   const lesson = lessonById[id];
   if (!lesson) return viewMissing();
   const idx = allLessons.findIndex((l) => l.id === id);
-  const following = allLessons[idx + 1];
+  const following = allLessons[idx + 1] && allLessons[idx + 1].track === lesson.track ? allLessons[idx + 1] : null;
   const practice = allChallenges.filter((c) => c.lesson === id);
   const done = !!state.lessons[id];
 
@@ -420,7 +433,7 @@ function viewLesson(id) {
   };
 
   put(app, 
-    topbar(`Chapter ${lesson.chapter} · Lesson ${idx + 1} of ${allLessons.filter((l) => l.chapter === lesson.chapter).length}`),
+    topbar(`${lesson.unit} ${lesson.chapter} · Lesson ${lesson.n} of ${lesson.of}`),
     h('header', { class: 'stack-sm' },
       h('span', { class: 'eyebrow' }, `${lesson.character} · ${lesson.show}`),
       h('h1', { class: 'h-title' }, lesson.title)),
@@ -428,6 +441,7 @@ function viewLesson(id) {
       if (b.p) return h('p', null, rich(b.p));
       if (b.tip) return h('div', { class: 'tip' }, h('b', null, 'Tip: '), rich(b.tip));
       if (b.code) return exampleBlock(b);
+      if (b.listing) return h('div', { class: 'code-box' }, h('pre', { class: 'code-static' }, b.listing));
       return null;
     })),
     h('section', { class: 'stack' },
@@ -476,6 +490,7 @@ function viewChallenge(id) {
       h('div', { class: 'tags' },
         h('span', { class: 'tag mono' }, 'C++'), h('span', { class: 'tag' }, KIND[c.kind]), h('span', { class: 'tag level' }, c.level))),
     h('p', { class: 'soft' }, rich(c.prompt)),
+    c.steps ? h('ol', { class: 'steps' }, c.steps.map((step) => h('li', null, rich(step)))) : null,
   ];
   const lessonLink = lesson ? h('a', { class: 'item plain', href: '#/lesson/' + lesson.id },
     h('span', { class: 'grow' }, 'Lesson: ' + lesson.title), icon('arrow', 16)) : null;
@@ -670,7 +685,7 @@ function viewMissing() {
 
 function drawTabs(current) {
   const tab = (id, label, ic) => h('a', { href: '#/' + id, 'aria-current': current === id ? 'page' : null }, icon(ic, 22), h('span', null, label));
-  put(tabs, tab('today', 'Today', 'today'), tab('track', 'Track', 'track'), tab('progress', 'Progress', 'progress'));
+  put(tabs, tab('today', 'Today', 'today'), tab('track', 'Tracks', 'track'), tab('progress', 'Progress', 'progress'));
 }
 
 function render() {

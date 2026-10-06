@@ -2,14 +2,17 @@
 //   - lesson examples compile and run
 //   - each challenge solution passes all of its tests
 //   - each bug-hunt starter fails at least one test (so there is a bug to find)
-//   - each "predict" answer matches what the code really prints
+//   - each "predict" answer matches what the code really prints (unless noVerify)
+//   - lesson examples marked `broken` really do fail to compile
 // Usage: node tools/verify-content.mjs
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { chapters } from '../content/index.js';
+import { tracks } from '../content/index.js';
+
+const chapters = tracks.flatMap((t) => t.chapters);
 
 const dir = mkdtempSync(join(tmpdir(), 'dojo-'));
 let n = 0;
@@ -43,6 +46,7 @@ for (const ch of chapters) {
     for (const b of l.body) {
       if (!b.code) continue;
       const bin = build(b.code);
+      if (b.broken) { if (bin) fail(`${l.id}: example marked broken compiles`); continue; }
       if (!bin) fail(`${l.id}: lesson example does not compile`);
       else run(bin, b.stdin);
     }
@@ -55,6 +59,8 @@ for (const ch of chapters) {
     if (!lessonIds.has(c.lesson)) fail(`${c.id}: unknown lesson ${c.lesson}`);
 
     if (c.kind === 'predict') {
+      if (!(c.answer >= 0 && c.answer < c.options.length)) fail(`${c.id}: bad answer index`);
+      if (c.noVerify) continue;
       const bin = build(c.code);
       if (!bin) { fail(`${c.id}: predict code does not compile`); continue; }
       const out = norm(run(bin, ''));

@@ -8,6 +8,7 @@ export const tracks = [
     id: 'cpp',
     title: 'C++',
     unit: 'Chapter',
+    blurb: 'The language itself. Nothing is locked, so skip ahead whenever a topic is review.',
     // Order and titles follow the table of contents at learncpp.com.
     chapters: [
       { num: '0', title: 'Introduction and getting started' },
@@ -44,9 +45,28 @@ export const tracks = [
     ],
   },
   {
+    id: 'emb',
+    title: 'Embedded',
+    unit: 'Unit',
+    blurb: 'What is specific to firmware: how code reaches a device, where it lives in memory, and how it talks to hardware. Unit M1 is the bigger picture and needs only C++ chapters 1 and 2.',
+    chapters: [
+      { num: 'M1', title: 'From source code to a running device', load: () => import('./m1.js') },
+      { num: 'M2', title: 'Memory: stack, heap, and static' },
+      { num: 'M3', title: 'Bits, registers, and fixed-width types' },
+      { num: 'M4', title: 'const, volatile, and talking to hardware' },
+      { num: 'M5', title: 'Interrupts and shared data' },
+      { num: 'M6', title: 'State machines and the main loop' },
+      { num: 'M7', title: 'Buffers and serial communication' },
+      { num: 'M8', title: 'RTOS basics: tasks, queues, and timing' },
+      { num: 'M9', title: 'Debugging on real hardware' },
+      { num: 'M10', title: 'Embedded interview questions' },
+    ],
+  },
+  {
     id: 'eng',
     title: 'Engineering',
     unit: 'Unit',
+    blurb: 'The habits that make an engineer reliable, and that interviews test: debugging, testing, design, data structures and how software gets built. Unit E1 needs only C++ chapter 1.',
     // The habits and bigger-picture knowledge that make an engineer reliable,
     // and that interviews test. Units use C++ as the working language.
     chapters: [

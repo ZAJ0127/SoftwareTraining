@@ -222,7 +222,7 @@ pre.code-static { margin: 0; padding: 12px 14px; font-family: var(--mono); font-
 .code-input:focus-visible { outline: 0; }
 
 /* Track switch */
-.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 3px; background: var(--surface); border-radius: 12px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 3px; background: var(--surface); border-radius: 12px; }
 .seg button { height: 44px; border: 0; border-radius: 9px; background: none; color: var(--muted); font-weight: 500; font-size: 14px; }
 .seg button[aria-pressed="true"] { background: #2f3643; color: var(--text); font-weight: 600; }
 

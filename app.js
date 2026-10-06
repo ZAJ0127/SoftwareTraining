@@ -1,7 +1,7 @@
 import { tracks } from './content/index.js';
 import { runCpp, normalize } from './runner.js';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const STORE_KEY = 'codedojo.v1';
 
 /* ---------- small helpers ---------- */
@@ -124,6 +124,7 @@ async function loadContent() {
 }
 
 const KIND = { write: 'Write code', bughunt: 'Bug hunt', predict: 'Read the code', project: 'Mini project' };
+const kindLabel = (c) => (c.noVerify ? 'Concept check' : KIND[c.kind]);
 const nextLesson = (trackId) => allLessons.find((l) => !state.lessons[l.id] && (!trackId || l.track === trackId));
 const dueReviews = () => {
   const t = dayKey();
@@ -259,7 +260,7 @@ function challengeRow(c) {
   const kind = state.review[c.id] && state.review[c.id] <= t ? 'review' : state.done[c.id] ? 'done' : 'todo';
   return h('a', { class: 'item', href: '#/challenge/' + c.id },
     statusIcon(kind),
-    h('span', { class: 'grow' }, c.title, h('div', { class: 'sub' }, `${KIND[c.kind]} · ${c.character}`)),
+    h('span', { class: 'grow' }, c.title, h('div', { class: 'sub' }, `${kindLabel(c)} · ${c.character}`)),
     h('span', { class: 'sub' }, c.level));
 }
 function lessonRow(lesson, withUnit) {
@@ -303,7 +304,7 @@ function viewToday() {
       h('p', { class: 'soft' }, rich(daily.prompt)),
       h('div', { class: 'tags' },
         h('span', { class: 'tag mono' }, 'C++'),
-        h('span', { class: 'tag' }, KIND[daily.kind]),
+        h('span', { class: 'tag' }, kindLabel(daily)),
         h('span', { class: 'tag level' }, daily.level)),
       h('a', { class: 'btn primary', href: '#/challenge/' + daily.id }, solved ? 'Open again' : 'Start challenge', icon('arrow')));
   } else if (next) {
@@ -374,11 +375,9 @@ function viewTrack() {
         type: 'button', 'aria-pressed': String(t.id === track.id),
         onclick: () => { state.tab = t.id; save(); viewTrack(); },
       }, t.title))),
-      track.id === 'cpp'
-        ? h('div', { class: 'small muted' }, 'The language itself. Chapters follow the order of ',
-          h('a', { href: 'https://www.learncpp.com/', target: '_blank', rel: 'noopener' }, 'LearnCpp.com'),
-          '. Nothing is locked, so skip ahead whenever a topic is review.')
-        : h('div', { class: 'small muted' }, 'The habits and bigger-picture knowledge that make an engineer reliable, and that interviews test: debugging, testing, design, data structures and how software gets built. Unit E1 needs only C++ chapter 1.')),
+      h('div', { class: 'small muted' }, track.blurb,
+        track.id === 'cpp' ? [' Chapters follow the order of ',
+          h('a', { href: 'https://www.learncpp.com/', target: '_blank', rel: 'noopener' }, 'LearnCpp.com'), '.'] : null)),
     h('div', { class: 'list' }, rows));
 }
 
@@ -447,10 +446,10 @@ function viewLesson(id) {
     h('section', { class: 'stack' },
       h('h2', { class: 'h-section' }, 'Quick check'),
       quiz({ ...lesson.check })),
-    h('section', { class: 'stack' },
+    lesson.refs && lesson.refs.length ? h('section', { class: 'stack' },
       h('h2', { class: 'h-section' }, 'Read the full lesson'),
       h('div', { class: 'list' }, lesson.refs.map((r) => h('a', { class: 'item plain dashed', href: r.url, target: '_blank', rel: 'noopener', style: 'color: var(--accent-text)' },
-        h('span', { class: 'grow' }, 'LearnCpp ' + r.label), icon('out', 16))))),
+        h('span', { class: 'grow' }, 'LearnCpp ' + r.label), icon('out', 16))))) : null,
     practice.length ? h('section', { class: 'stack' },
       h('h2', { class: 'h-section' }, 'Practice'),
       h('div', { class: 'list' }, practice.map(challengeRow))) : null,
@@ -483,12 +482,12 @@ function viewChallenge(id) {
   if (!c) return viewMissing();
   const lesson = lessonById[c.lesson];
   const head = [
-    topbar(KIND[c.kind]),
+    topbar(kindLabel(c)),
     h('header', { class: 'stack-sm' },
       h('span', { class: 'eyebrow' }, `${c.character} · ${c.show}`),
       h('h1', { class: 'h-title' }, c.title),
       h('div', { class: 'tags' },
-        h('span', { class: 'tag mono' }, 'C++'), h('span', { class: 'tag' }, KIND[c.kind]), h('span', { class: 'tag level' }, c.level))),
+        h('span', { class: 'tag mono' }, 'C++'), h('span', { class: 'tag' }, kindLabel(c)), h('span', { class: 'tag level' }, c.level))),
     h('p', { class: 'soft' }, rich(c.prompt)),
     c.steps ? h('ol', { class: 'steps' }, c.steps.map((step) => h('li', null, rich(step)))) : null,
   ];
@@ -498,9 +497,9 @@ function viewChallenge(id) {
   if (c.kind === 'predict') {
     const after = h('div');
     put(app, ...head,
-      h('div', { class: 'code-box' }, h('pre', { class: 'code-static' }, c.code)),
+      c.code ? h('div', { class: 'code-box' }, h('pre', { class: 'code-static' }, c.code)) : null,
       quiz({
-        options: c.options, answer: c.answer, explain: c.explain, mono: true,
+        options: c.options, answer: c.answer, explain: c.explain, mono: !c.noVerify,
         onAnswer: (right) => {
           if (right) recordSolved(c, false);
           else { state.review[c.id] = dayKey(addDays(2)); markDay(); save(); }

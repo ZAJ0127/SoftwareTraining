@@ -1,9 +1,9 @@
 // Network first, so new lessons and fixes show up as soon as you are online.
 // Falls back to the last saved copy when offline.
-const CACHE = 'code-dojo-v2';
+const CACHE = 'code-dojo-v3';
 const CORE = [
   './', 'index.html', 'styles.css', 'app.js', 'runner.js',
-  'content/index.js', 'content/ch01.js', 'content/ch02.js', 'content/e1.js',
+  'content/index.js', 'content/ch01.js', 'content/ch02.js', 'content/e1.js', 'content/m1.js',
   'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
 ];
 

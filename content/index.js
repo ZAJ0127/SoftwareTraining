@@ -1,0 +1,37 @@
+// Chapter list. Order and titles follow the table of contents at learncpp.com.
+// A chapter with a `load` function has lessons and challenges in this app.
+// To add a chapter: write content/chNN.js and add its `load` line here.
+
+export const chapters = [
+  { num: '0', title: 'Introduction and getting started' },
+  { num: '1', title: 'C++ basics', load: () => import('./ch01.js') },
+  { num: '2', title: 'Functions and files' },
+  { num: '3', title: 'Debugging C++ programs' },
+  { num: '4', title: 'Fundamental data types' },
+  { num: '5', title: 'Constants and strings' },
+  { num: '6', title: 'Operators' },
+  { num: 'O', title: 'Bit manipulation (optional)' },
+  { num: '7', title: 'Scope, duration, and linkage' },
+  { num: '8', title: 'Control flow' },
+  { num: '9', title: 'Error detection and handling' },
+  { num: '10', title: 'Type conversion, type aliases, and type deduction' },
+  { num: '11', title: 'Function overloading and function templates' },
+  { num: 'F', title: 'Constexpr functions' },
+  { num: '12', title: 'Compound types: references and pointers' },
+  { num: '13', title: 'Compound types: enums and structs' },
+  { num: '14', title: 'Introduction to classes' },
+  { num: '15', title: 'More on classes' },
+  { num: '16', title: 'Dynamic arrays: std::vector' },
+  { num: '17', title: 'Fixed-size arrays: std::array and C-style arrays' },
+  { num: '18', title: 'Iterators and algorithms' },
+  { num: '19', title: 'Dynamic allocation' },
+  { num: '20', title: 'Functions' },
+  { num: '21', title: 'Operator overloading' },
+  { num: '22', title: 'Move semantics and smart pointers' },
+  { num: '23', title: 'Object relationships' },
+  { num: '24', title: 'Inheritance' },
+  { num: '25', title: 'Virtual functions' },
+  { num: '26', title: 'Templates and classes' },
+  { num: '27', title: 'Exceptions' },
+  { num: '28', title: 'Input and output (I/O)' },
+];

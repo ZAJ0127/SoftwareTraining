@@ -192,6 +192,9 @@ int main() {
       character: 'Mirajane',
       show: 'Fairy Tail',
       lesson: 'c1-first-program',
+      plan: [
+        "Print the welcome line, ending with a newline.",
+      ],
       prompt: 'Mirajane wants a welcome message on the guild hall screen. Print exactly this line.',
       starter: cpp`#include <iostream>
 
@@ -222,6 +225,11 @@ int main() {
       character: 'Yor',
       show: 'Spy x Family',
       lesson: 'c1-first-program',
+      plan: [
+        "Print the first item on its own line.",
+        "Print the second item on its own line.",
+        "Print the third item on its own line.",
+      ],
       prompt: 'Yor is determined to cook dinner tonight. Print her shopping list, one item per line.',
       starter: cpp`#include <iostream>
 
@@ -284,6 +292,12 @@ int main() {
       character: 'Lucy',
       show: 'Fairy Tail',
       lesson: 'c1-variables',
+      plan: [
+        "Create a variable for the gold keys, set to 10.",
+        "Create a variable for the silver keys, set to 5.",
+        "Print the gold count with its label.",
+        "Print the silver count with its label.",
+      ],
       prompt: 'Lucy is taking stock of her keys. Create an `int` variable holding her 10 gold keys and another holding her 5 silver keys, then print both counts using the variables.',
       starter: cpp`#include <iostream>
 
@@ -320,6 +334,11 @@ int main() {
       character: 'Nami',
       show: 'One Piece',
       lesson: 'c1-input-output',
+      plan: [
+        "Create a variable for the berries.",
+        "Read a number into it.",
+        "Print the number times two.",
+      ],
       prompt: 'Nami has found a way to double any treasure. Read one whole number and print twice that number.',
       starter: cpp`#include <iostream>
 
@@ -356,10 +375,20 @@ int main() {
       character: 'Kate Bishop',
       show: 'Hawkeye',
       lesson: 'c1-input-output',
-      prompt: 'Kate starts with a full quiver and fires some arrows. Read two whole numbers, the arrows she started with and the arrows she fired, then print how many are left in this format.',
+      plan: [
+        "Create variables for the quiver and the arrows fired.",
+        "Read both numbers.",
+        "Print the label, followed by quiver minus fired.",
+      ],
+      prompt: 'Kate starts with a full quiver and fires some arrows. Read two whole numbers, the arrows she started with and the arrows she fired, then print how many are left in this format. The plan is written as comments: turn each one into code.',
       starter: cpp`#include <iostream>
 
 int main() {
+  // 1. Create variables for the quiver and the arrows fired
+
+  // 2. Read both numbers
+
+  // 3. Print "Arrows left: " followed by quiver minus fired
 
   return 0;
 }`,
@@ -456,13 +485,14 @@ int main() {
       character: 'Asuna',
       show: 'Sword Art Online',
       lesson: 'c1-expressions',
-      prompt: "Asuna checks her party before a boss fight. Read three whole numbers, one HP value per party member, and print the party's total HP in this format.",
-      starter: cpp`#include <iostream>
-
-int main() {
-
-  return 0;
-}`,
+      scaffold: 'blank',
+      plan: [
+        "Create three variables, one per party member.",
+        "Read the three HP values.",
+        "Print the label, followed by the three values added together.",
+      ],
+      prompt: "Asuna checks her party before a boss fight. Read three whole numbers, one HP value per party member, and print the party's total HP in this format. This one starts from an empty file: plan first, then write the whole program.",
+      starter: '',
       tests: [
         { name: 'Three fighters', stdin: '120 95 140', expected: 'Total HP: 355' },
         { name: 'Everyone down', stdin: '0 0 0', expected: 'Total HP: 0' },
@@ -551,13 +581,15 @@ int main() {
       character: 'Natasha',
       show: 'Marvel',
       lesson: 'c1-expressions',
-      prompt: "Natasha's mission clock shows minutes and seconds, but the detonator only takes seconds. Read two whole numbers, minutes then seconds, and print the total number of seconds in this format.",
-      starter: cpp`#include <iostream>
-
-int main() {
-
-  return 0;
-}`,
+      scaffold: 'blank',
+      plan: [
+        "Create variables for minutes and seconds.",
+        "Read both numbers.",
+        "Convert: minutes times 60, plus the seconds.",
+        "Print the result with its label.",
+      ],
+      prompt: "Natasha's mission clock shows minutes and seconds, but the detonator only takes seconds. Read two whole numbers, minutes then seconds, and print the total number of seconds in this format. Start from an empty file and plan first.",
+      starter: '',
       tests: [
         { name: '2 min 30 s', stdin: '2 30', expected: 'Seconds: 150' },
         { name: 'Under a minute', stdin: '0 45', expected: 'Seconds: 45' },
@@ -577,6 +609,163 @@ int main() {
   return 0;
 }`,
       explain: 'Operator precedence does the work: `minutes * 60` is calculated first, then `seconds` is added.',
+    },
+  ],
+
+  drills: [
+    {
+      id: 'd-skeleton',
+      pattern: 'Program skeleton',
+      title: 'From nothing',
+      lesson: 'c1-first-program',
+      prompt: 'Write a complete program that prints `Ready` on one line.',
+      tests: [{ name: 'Prints Ready', stdin: '', expected: 'Ready' }],
+      hint: 'Three parts: the `#include` line for printing, the `main` function with its braces, and one print statement inside it.',
+      solution: cpp`#include <iostream>
+
+int main() {
+  std::cout << "Ready\n";
+  return 0;
+}`,
+    },
+    {
+      id: 'd-two-lines',
+      pattern: 'Several lines of output',
+      title: 'Two lines',
+      lesson: 'c1-first-program',
+      prompt: 'Print `Fairy` on one line and `Tail` on the next.',
+      tests: [{ name: 'Two lines', stdin: '', expected: 'Fairy\nTail' }],
+      hint: "End each line with `\\n` inside the quotes.",
+      solution: cpp`#include <iostream>
+
+int main() {
+  std::cout << "Fairy\n";
+  std::cout << "Tail\n";
+  return 0;
+}`,
+    },
+    {
+      id: 'd-variable',
+      pattern: 'Store a value, then print it',
+      title: 'Hold the value',
+      lesson: 'c1-variables',
+      prompt: 'Create an `int` variable holding 42, then print it as `Value: 42` using the variable.',
+      tests: [{ name: 'Prints the value', stdin: '', expected: 'Value: 42' }],
+      mustMatch: [{ re: /int\s+\w+\s*(\{\s*42\s*\}|=\s*42)/, msg: 'Store 42 in an int variable, then print the variable rather than the number.' }],
+      hint: 'Create it with `int value{ 42 };`, then chain the label and the variable in one print.',
+      solution: cpp`#include <iostream>
+
+int main() {
+  int value{ 42 };
+  std::cout << "Value: " << value << '\n';
+  return 0;
+}`,
+    },
+    {
+      id: 'd-echo',
+      pattern: 'Read a number',
+      title: 'Echo',
+      lesson: 'c1-input-output',
+      prompt: 'Read a whole number and print it back as `You entered N`.',
+      tests: [
+        { name: 'Reads 7', stdin: '7', expected: 'You entered 7' },
+        { name: 'Reads a negative', stdin: '-3', expected: 'You entered -3' },
+      ],
+      hint: 'Create an `int` first, then `std::cin >> n;` reads into it.',
+      solution: cpp`#include <iostream>
+
+int main() {
+  int n{};
+  std::cin >> n;
+  std::cout << "You entered " << n << '\n';
+  return 0;
+}`,
+    },
+    {
+      id: 'd-sum-two',
+      pattern: 'Read two numbers and combine them',
+      title: 'Sum of two',
+      lesson: 'c1-input-output',
+      prompt: 'Read two whole numbers and print their sum.',
+      tests: [
+        { name: '3 and 4', stdin: '3 4', expected: '7' },
+        { name: 'With a negative', stdin: '10 -2', expected: '8' },
+      ],
+      hint: 'Two variables, one `std::cin` statement: `std::cin >> a >> b;`',
+      solution: cpp`#include <iostream>
+
+int main() {
+  int a{};
+  int b{};
+  std::cin >> a >> b;
+  std::cout << a + b << '\n';
+  return 0;
+}`,
+    },
+    {
+      id: 'd-update',
+      pattern: 'Update a variable step by step',
+      title: 'Step by step',
+      lesson: 'c1-variables',
+      prompt: 'Read a number. Add 5 to it, then double the result, storing each step back in the same variable. Print the final value.',
+      tests: [
+        { name: 'Starts at 1', stdin: '1', expected: '12' },
+        { name: 'Starts at 0', stdin: '0', expected: '10' },
+      ],
+      hint: 'Assignment can use the variable\'s own value: `n = n + 5;`',
+      solution: cpp`#include <iostream>
+
+int main() {
+  int n{};
+  std::cin >> n;
+  n = n + 5;
+  n = n * 2;
+  std::cout << n << '\n';
+  return 0;
+}`,
+    },
+    {
+      id: 'd-square',
+      pattern: 'Calculate and print an expression',
+      title: 'Square it',
+      lesson: 'c1-expressions',
+      prompt: 'Read a whole number and print its square.',
+      tests: [
+        { name: 'Square of 9', stdin: '9', expected: '81' },
+        { name: 'Square of a negative', stdin: '-4', expected: '16' },
+      ],
+      hint: 'You can print an expression directly: `n * n`.',
+      solution: cpp`#include <iostream>
+
+int main() {
+  int n{};
+  std::cin >> n;
+  std::cout << n * n << '\n';
+  return 0;
+}`,
+    },
+    {
+      id: 'd-precedence',
+      pattern: 'Control the order of operations',
+      title: 'Brackets matter',
+      lesson: 'c1-expressions',
+      prompt: 'Read three numbers a, b and c. Print `a + b * c` on the first line and `(a + b) * c` on the second.',
+      tests: [
+        { name: '2 3 4', stdin: '2 3 4', expected: '14\n20' },
+        { name: '1 1 1', stdin: '1 1 1', expected: '2\n2' },
+      ],
+      hint: 'Multiplication happens first unless parentheses say otherwise.',
+      solution: cpp`#include <iostream>
+
+int main() {
+  int a{};
+  int b{};
+  int c{};
+  std::cin >> a >> b >> c;
+  std::cout << a + b * c << '\n';
+  std::cout << (a + b) * c << '\n';
+  return 0;
+}`,
     },
   ],
 };

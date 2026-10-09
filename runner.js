@@ -106,3 +106,7 @@ export async function runCpp(source, stdin = '') {
 // Output comparison ignores trailing spaces and trailing blank lines.
 export const normalize = (s) =>
   (s || '').replace(/\r/g, '').split('\n').map((l) => l.trimEnd()).join('\n').trim();
+
+// Removes // and /* */ comments, so source checks ignore planning notes.
+// (Good enough for checking learner code; it does not handle // inside strings.)
+export const stripComments = (src) => (src || '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');

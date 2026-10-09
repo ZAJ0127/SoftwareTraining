@@ -4,6 +4,8 @@
 //   - each bug-hunt starter fails at least one test (so there is a bug to find)
 //   - each "predict" answer matches what the code really prints (unless noVerify)
 //   - lesson examples marked `broken` really do fail to compile
+//   - write and project challenges have a plan
+//   - each drill solution passes its tests and its source checks (mustMatch)
 // Usage: node tools/verify-content.mjs
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -11,6 +13,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { tracks } from '../content/index.js';
+import { stripComments } from '../runner.js';
 
 const chapters = tracks.flatMap((t) => t.chapters);
 
@@ -68,6 +71,9 @@ for (const ch of chapters) {
       continue;
     }
 
+    if ((c.kind === 'write' || c.kind === 'project') && !(Array.isArray(c.plan) && c.plan.length)) fail(`${c.id}: missing plan`);
+    if (c.scaffold === 'blank' && c.starter) fail(`${c.id}: blank challenge should have an empty starter`);
+
     const sol = build(c.solution);
     if (!sol) { fail(`${c.id}: solution does not compile`); continue; }
     for (const t of c.tests) {
@@ -84,7 +90,21 @@ for (const ch of chapters) {
     }
     if (starterPasses) fail(`${c.id}: starter code already passes every test`);
   }
-  console.log(`chapter ${data.num}: ${data.lessons.length} lessons, ${data.challenges.length} challenges checked`);
+  for (const d of data.drills || []) {
+    if (ids.has(d.id)) fail(`duplicate id ${d.id}`);
+    ids.add(d.id);
+    if (!lessonIds.has(d.lesson)) fail(`${d.id}: unknown lesson ${d.lesson}`);
+    for (const rule of d.mustMatch || []) {
+      if (!rule.re.test(stripComments(d.solution))) fail(`${d.id}: solution fails source check "${rule.msg}"`);
+    }
+    const sol = build(d.solution);
+    if (!sol) { fail(`${d.id}: drill solution does not compile`); continue; }
+    for (const t of d.tests) {
+      const out = norm(run(sol, t.stdin));
+      if (out !== norm(t.expected)) fail(`${d.id} / ${t.name}: got "${out}", expected "${t.expected}"`);
+    }
+  }
+  console.log(`chapter ${data.num}: ${data.lessons.length} lessons, ${data.challenges.length} challenges, ${(data.drills || []).length} drills checked`);
 }
 
 console.log(failures ? `${failures} problem(s)` : 'All content OK');

@@ -1,9 +1,11 @@
-// Engineering unit 1: Finding and fixing bugs.
+// Engineering unit 1: Breaking a problem down.
+// The method for getting from a blank page to working code.
 // Needs only what C++ chapter 1 teaches.
 //
-// Lesson code blocks marked `broken: true` are meant to fail to compile.
-// Predict challenges marked `noVerify: true` have answers that are not
-// simply "what the code prints".
+// Challenge fields used here:
+//   plan      the steps of a working plan, shown after solving
+//   scaffold  'blank' = the editor starts empty and you write your own plan first
+// Predict challenges marked `noVerify: true` are concept questions.
 
 const cpp = String.raw;
 const L = 'https://www.learncpp.com/cpp-tutorial/';
@@ -12,306 +14,353 @@ export default {
   num: 'E1',
   lessons: [
     {
-      id: 'e1-source-to-program',
-      title: 'How code becomes a program',
-      character: 'Momo',
-      show: 'My Hero Academia',
-      refs: [
-        { label: '0.5 Introduction to the compiler, linker, and libraries', url: L + 'introduction-to-the-compiler-linker-and-libraries/' },
-        { label: '3.1 Syntax and semantic errors', url: L + 'syntax-and-semantic-errors/' },
-      ],
-      body: [
-        { p: 'Momo can create almost any object, but only if she understands exactly how it is built. The compiler is the same. It turns your text into a working program, and it can only do that if every detail of the text is valid.' },
-        { p: 'The text you write is source code. On its own it does nothing. The compiler translates it into machine code, and a second tool, the linker, joins that with library code such as `std::cout` to make an executable. Only then can the program run.' },
-        { p: 'So there are three moments when something can go wrong, and knowing which one you are in is the first step in fixing anything.' },
-        { p: 'A compile error means the compiler could not understand the text, and no program is produced. A runtime error means the program started, then crashed or misbehaved while running. A logic error means the program ran to the end and gave the wrong answer.' },
-        { code: cpp`#include <iostream>
-
-int main() {
-  int price{ 20 };
-  int quantity{ 3 };
-  std::cout << "Total: " << price + quantity << '\n';
-  return 0;
-}` },
-        { p: 'That program compiles and runs without complaint, and prints 23 where it should print 60. The compiler checks grammar, not meaning. Logic errors are the ones you have to catch yourself, which is what the rest of this unit is about.' },
-      ],
-      check: {
-        q: 'A program compiles, runs to the end, and prints the wrong total. What kind of error is that?',
-        options: ['Compile error', 'Runtime error', 'Logic error'],
-        answer: 2,
-        explain: 'It built and it ran, so the grammar was fine and nothing crashed. The instructions themselves were wrong.',
-      },
-    },
-    {
-      id: 'e1-reading-errors',
-      title: 'Reading a compiler error',
-      character: 'Natasha',
-      show: 'Marvel',
-      refs: [{ label: '3.1 Syntax and semantic errors', url: L + 'syntax-and-semantic-errors/' }],
-      body: [
-        { p: 'Natasha gets what she needs from an interrogation by listening to exactly what is said. Compiler errors look hostile, but they answer the same questions every time: where, and what.' },
-        { p: "Take this message: `line 5: error: expected ',' or ';' before 'std'`. The line number is where the compiler noticed the problem. The real mistake is on that line or just before it, because the compiler only realises something is missing when it reaches the next thing." },
-        { code: cpp`#include <iostream>
-
-int main() {
-  int agents{ 6 }
-  std::cout << agents << '\n';
-  return 0;
-}`, broken: true },
-        { tip: 'Run it and read the message before fixing anything. Which line does it name, and which line is the semicolon missing from?' },
-        { p: 'Fix the first error, then compile again. One mistake often confuses the compiler for the rest of the file, so later errors may vanish once the first is fixed.' },
-        { p: 'A warning is different. The program still builds, but the compiler has spotted something that is probably a mistake, such as using a variable before giving it a value. Treat a warning as an error that has not happened yet.' },
-      ],
-      check: {
-        q: 'The compiler reports 12 errors. What is the best first move?',
-        options: ['Fix the last one, since it is nearest the end', 'Fix the first one and compile again', 'Fix all twelve before compiling again'],
-        answer: 1,
-        explain: 'Later errors are often side effects of the first. Fixing them in order, one compile at a time, is usually the quickest route.',
-      },
-    },
-    {
-      id: 'e1-tracing',
-      title: 'Tracing by hand',
-      character: 'Hinata',
+      id: 'p1-blank-page',
+      title: 'Why the blank page feels hard',
+      character: 'Sakura',
       show: 'Naruto',
-      refs: [{ label: '3.4 Basic debugging tactics', url: L + 'basic-debugging-tactics/' }],
+      refs: [],
       body: [
-        { p: "Hinata's Byakugan lets her see what is happening inside an opponent. You need the same view inside a running program, because the code you meant to write and the code you actually wrote are often different." },
-        { p: 'Tracing means playing computer. Go through the code one line at a time and write down the value of every variable after each line. It feels slow. It is also the fastest way to find a logic error, because the moment your notes differ from what you expected, you have found the bug.' },
-        { code: cpp`#include <iostream>
-
-int main() {
-  int chakra{ 100 };
-  int cost{ 30 };
-  chakra = chakra - cost;   // chakra is 70
-  cost = cost * 2;          // cost is 60
-  chakra = chakra - cost;   // chakra is 10
-  std::cout << chakra << '\n';
-  return 0;
-}` },
-        { p: 'When tracing in your head gets hard, make the program do it. Add a temporary `std::cout` that prints a variable at the point you are unsure about, run it, and compare. This is called print debugging, and working engineers use it every day.' },
-        { tip: "Label your debug prints, for example `std::cout << \"after cost: \" << chakra << '\\n';`, so you can tell them apart. Remove them when you are done." },
+        { p: 'Sakura knew every answer in the written exam. Then came the field test, where nobody handed her the questions. Plenty of programmers are in the same spot: they can read code fine, but stare at an empty editor and freeze.' },
+        { p: 'That is not a lack of talent. Reading and writing are different skills. Reading code is recognition: the answer is in front of you and you only have to follow it. Writing is recall: pulling the answer out of your own head with nothing to prompt you. Recognition always feels easier, so lots of reading can leave recall untrained.' },
+        { p: 'Writing from scratch also needs a second skill that reading never exercises: turning a problem described in words into a list of small steps. Most people who feel stuck are missing this part, not the syntax.' },
+        { p: 'Both can be trained, and the practice looks like this. Write from an empty file, not by filling in gaps. Plan in plain English before you write any code. Repeat the small, common patterns until you can type them without thinking. Give a problem a real attempt before looking anything up.' },
+        { tip: 'Looking things up is normal. Experienced engineers do it all day. The difference is what they look up: a detail, such as the exact syntax for something, not the approach. The aim of this unit is to have the approach in your own head.' },
       ],
       check: {
-        q: 'In the example, what is the value of `cost` when the program ends?',
-        options: ['30', '60', '10'],
+        q: 'You can follow other people\'s code easily but cannot write similar code yourself. What is the most likely reason?',
+        options: ['You need to read more code first', 'You have practised recognising code, but not recalling and planning it', 'Some people can only read code'],
         answer: 1,
-        explain: 'cost starts at 30 and line 7 doubles it. Nothing changes it after that.',
+        explain: 'Reading builds recognition. Writing needs recall and planning, which only improve when you practise writing from nothing.',
       },
     },
     {
-      id: 'e1-testing',
-      title: 'Test it like you want it to break',
-      character: 'Yoruichi',
-      show: 'Bleach',
-      refs: [{ label: '9.1 Introduction to testing your code', url: L + 'introduction-to-testing-your-code/' }],
+      id: 'p1-five-steps',
+      title: 'Five steps from problem to program',
+      character: 'Temari',
+      show: 'Naruto',
+      refs: [],
       body: [
-        { p: 'Yoruichi does not test an opponent by hitting where they are strongest. She probes for the gap. Testing your own code takes the same attitude: you are trying to break it, because anything you fail to break now will break later in front of someone else.' },
-        { p: 'A test is an input together with the output you expect. Work out the expected output yourself, before you run the code. If you run first, it is too easy to look at whatever came out and decide it seems fine.' },
-        { p: 'One test is never enough. A program that works for 10 and 2 may fail for 0, for a negative number, or when the answer is not a whole number. These awkward inputs are called edge cases, and bugs collect there.' },
+        { p: 'Temari never charges in. She reads the field, works out the moves, then commits. Here is the same discipline as a method you can use on any programming problem.' },
+        { p: '1. Restate the problem. What comes in, and what has to come out? Write it in one sentence.' },
+        { p: '2. Work one example by hand. Pick a real input and calculate the output yourself, on paper or in your head. Notice every calculation you do. Those calculations are your program.' },
+        { p: '3. Write the steps in plain English. One small step per line. If you cannot say how to do a step, it is too big. Split it.' },
+        { p: '4. Turn each step into code, one at a time. Run the program after each step, so a mistake is always in the line you just wrote.' },
+        { p: '5. Test with awkward inputs: zero, a value that does not divide evenly, the largest or smallest case.' },
+        { p: 'Here it is on a real problem: turn a number of seconds into minutes and seconds. Restated: one number comes in, two numbers come out. By hand, with 135: 135 divided by 60 is 2 whole minutes; those use up 120 seconds; 135 minus 120 leaves 15. The comments below are those steps, and each line of code is one of the calculations.' },
         { code: cpp`#include <iostream>
 
 int main() {
-  int cookies{};
-  int friends{};
-  std::cin >> cookies >> friends;
-  std::cout << "Each gets " << cookies / friends << '\n';
+  // 1. Read the total number of seconds
+  int total{};
+  std::cin >> total;
+
+  // 2. Whole minutes: total divided by 60
+  int minutes{ total / 60 };
+
+  // 3. Seconds left over: total minus the seconds used by those minutes
+  int seconds{ total - minutes * 60 };
+
+  // 4. Print both
+  std::cout << minutes << " min " << seconds << " s\n";
   return 0;
-}`, stdin: '10 2' },
-        { tip: 'Run it with `10 2`, then change the input to `7 2`. The first looks fine. The second gives 3 each, and one cookie quietly goes missing.' },
-        { p: 'The Check button in this app runs tests somebody else wrote. In a real job nobody hands you those. Being the person who thinks of the awkward inputs is a large part of what makes an engineer reliable.' },
+}`, stdin: '135' },
+        { tip: 'Step 2 is the one people skip, and it is the one that unlocks the rest. If you cannot get the right answer by hand, no amount of code will get it for you.' },
       ],
       check: {
-        q: 'You wrote a function that halves a number. Which set of test inputs is the most useful?',
-        options: ['10, 20, 30', '10, 7, 0, -4', '2, 4, 8'],
+        q: 'You have read a problem and have no idea where to start. Which step comes next?',
+        options: ['Start typing and see what happens', 'Work one example by hand and note each calculation you make', 'Search for a complete solution'],
         answer: 1,
-        explain: 'It covers an even number, an odd number, zero and a negative. The other sets only test the easy case three times.',
+        explain: 'Solving one example by hand shows you the calculations the program has to make. That turns "no idea" into a list of steps.',
+      },
+    },
+    {
+      id: 'p1-plan-in-comments',
+      title: 'Plan in comments, then fill in',
+      character: 'Lena',
+      show: '86',
+      refs: [{ label: '1.2 Comments', url: L + 'comments/' }],
+      body: [
+        { p: 'Lena commands her squadron from a distance, so every order has to be clear before anyone moves. A plan written as comments works the same way. It is a list of orders, and the code underneath carries each one out.' },
+        { p: 'Start with only the skeleton and your steps as comments. This already compiles and runs. It just does nothing yet.' },
+        { code: cpp`#include <iostream>
+
+int main() {
+  // 1. Read the price of one item
+  // 2. Read how many items
+  // 3. Total: price times quantity
+  // 4. Print the total
+  return 0;
+}` },
+        { p: 'Now fill in one step, run it, and only then move to the next. Each comment becomes one or two lines of code. By the end, the comments explain the code for free.' },
+        { code: cpp`#include <iostream>
+
+int main() {
+  // 1. Read the price of one item
+  int price{};
+  std::cin >> price;
+
+  // 2. Read how many items
+  int quantity{};
+  std::cin >> quantity;
+
+  // 3. Total: price times quantity
+  int total{ price * quantity };
+
+  // 4. Print the total
+  std::cout << "Total: " << total << '\n';
+  return 0;
+}`, stdin: '20 3' },
+        { p: 'If a step will not turn into code, it is not small enough. "Work out the change" is too big. "Change is the amount paid minus the price" turns straight into one line.' },
+        { tip: 'When you get stuck halfway, check the code against the comment above it. A surprising number of bugs are a line that does not do what its comment says.' },
+      ],
+      check: {
+        q: 'One of your plan steps will not turn into code, however long you look at it. What should you do?',
+        options: ['Skip it and come back later', 'Split it into smaller steps until each one is obvious', 'Delete the plan and start typing'],
+        answer: 1,
+        explain: 'A step that will not become code is too big. Keep splitting until each step is roughly one line.',
+      },
+    },
+    {
+      id: 'p1-when-stuck',
+      title: 'When you are stuck',
+      character: 'Shinobu',
+      show: 'Demon Slayer',
+      refs: [],
+      body: [
+        { p: 'Shinobu was never the strongest swordswoman, so she won with precision instead of force. Being stuck calls for the same approach. Pushing harder on the whole problem rarely works. Making the problem smaller does.' },
+        { p: 'Shrink it. Cannot handle input yet? Put a fixed number in the code, such as `int total{ 135 };`, and get the calculation right first. Add the input once that works.' },
+        { p: 'Get something running. A program that prints one correct number is a foothold. Build out from it, one step at a time.' },
+        { p: 'Print what you have. If a value is wrong, print every variable along the way and find the first one that does not match your example by hand.' },
+        { p: 'Name the gap exactly. "I cannot do this problem" has no answer. "I do not know how to read two numbers from the input" has a quick one, and that is the right size of thing to look up.' },
+        { p: 'Look up the detail, not the solution. Search for the small thing you named. Then close the page and type it from memory. Copying keeps the knowledge in the browser. Retyping puts it in your head.' },
+        { tip: 'Give every problem a real attempt, around 15 minutes, before you look at any help. Struggling a little is what makes the answer stick when you do find it.' },
+      ],
+      check: {
+        q: 'Which of these is the most useful thing to search for when stuck?',
+        options: ['"c++ bill splitting program solution"', '"c++ read two integers from input"', '"why can\'t I code"'],
+        answer: 1,
+        explain: 'It names one specific gap. A full solution teaches you to copy, not to write.',
       },
     },
   ],
 
   challenges: [
     {
-      id: 'e1-blueprint',
+      id: 'p1-which-plan',
       kind: 'predict',
       noVerify: true,
       level: 'Easy',
-      title: 'Check the blueprint',
-      character: 'Momo',
-      show: 'My Hero Academia',
-      lesson: 'e1-source-to-program',
-      prompt: 'Momo checks a blueprint before she builds. Without running this, decide what happens.',
-      code: cpp`#include <iostream>
-
-int main() {
-  std::cout << "Creation complete\n;
-  return 0;
-}`,
-      options: ['It will not compile', 'It compiles, then crashes when run', 'It runs and prints the wrong text', 'It runs correctly'],
-      answer: 0,
-      explain: 'The closing quote is missing on line 4, so the compiler cannot tell where the text ends. That is a compile error: no program is produced, so there is nothing to run or crash.',
-    },
-    {
-      id: 'e1-checklist-bug',
-      kind: 'bughunt',
-      level: 'Easy',
-      title: 'Mission checklist',
-      character: 'Natasha',
-      show: 'Marvel',
-      lesson: 'e1-reading-errors',
-      prompt: 'This mission checklist will not compile. Run it, read the first error, fix that one thing, and run again. The messages tell you almost exactly what to do.',
-      starter: cpp`#include <iostream>
-
-int main() {
-  int agents{ 4 };
-  int gadgets{ 3 };
-  int totl{ agents * gadgets };
-  std::cout << "Gadgets packed: " << total << '\n';
-  std::cout << "Agents: " << agent << '\n';
-  return 0;
-}`,
-      tests: [{ name: 'Compiles and prints both lines', stdin: '', expected: 'Gadgets packed: 12\nAgents: 4' }],
-      hints: [
-        '"was not declared" means the compiler has never seen that exact name.',
-        'Compare the name on line 7 with the name defined on line 6, letter by letter.',
-        'There is a second misspelled name on line 8.',
-      ],
-      solution: cpp`#include <iostream>
-
-int main() {
-  int agents{ 4 };
-  int gadgets{ 3 };
-  int total{ agents * gadgets };
-  std::cout << "Gadgets packed: " << total << '\n';
-  std::cout << "Agents: " << agents << '\n';
-  return 0;
-}`,
-      explain: 'Both errors were misspelled names. The compiler even suggests the name it thinks you meant. Reading the message carefully is faster than staring at the code.',
-    },
-    {
-      id: 'e1-trace-swap',
-      kind: 'predict',
-      level: 'Medium',
-      title: 'See through it',
-      character: 'Hinata',
+      title: 'The bar tab',
+      character: 'Shizune',
       show: 'Naruto',
-      lesson: 'e1-tracing',
-      prompt: 'Trace this line by line and write the values down as you go. What does it print?',
-      code: cpp`#include <iostream>
-
-int main() {
-  int a{ 2 };
-  int b{ 5 };
-  a = a + b;
-  b = a - b;
-  a = a - b;
-  std::cout << a << ' ' << b << '\n';
-  return 0;
-}`,
-      options: ['2 5', '5 2', '7 2', '7 5'],
+      lesson: 'p1-five-steps',
+      prompt: "Shizune has to total Tsunade's bar tab: read the number of drinks and the price per drink, then print the total. Which plan works?",
+      options: [
+        'Print the total. Read the drinks and the price. Multiply them.',
+        'Read the drinks and the price. Multiply them. Print the result.',
+        'Read the drinks. Print the drinks times the price. Read the price.',
+      ],
       answer: 1,
-      explain: 'After line 6, a is 7. After line 7, b is 7 - 5 = 2. After line 8, a is 7 - 2 = 5. The three lines swap the two values, which is hard to see without writing each step down.',
+      explain: 'A value has to exist before you can use it. Read everything you need, calculate, then print. The other two plans use values that have not been read yet.',
     },
     {
-      id: 'e1-average-bug',
-      kind: 'bughunt',
-      level: 'Medium',
-      title: 'Tournament average',
-      character: 'Videl',
-      show: 'Dragon Ball',
-      lesson: 'e1-tracing',
-      prompt: "Videl wants the average of her two tournament scores. The program compiles and runs, but the answer is wrong. Trace it with the input 10 20 to find out why.",
-      starter: cpp`#include <iostream>
-
-int main() {
-  int first{};
-  int second{};
-  std::cin >> first >> second;
-  std::cout << "Average: " << first + second / 2 << '\n';
-  return 0;
-}`,
-      tests: [
-        { name: 'Scores 10 and 20', stdin: '10 20', expected: 'Average: 15' },
-        { name: 'Two equal scores', stdin: '4 4', expected: 'Average: 4' },
-        { name: 'A zero and a hundred', stdin: '0 100', expected: 'Average: 50' },
-      ],
-      hints: [
-        'With 10 and 20, which part of the expression is worked out first?',
-        'Division happens before addition, so only `second` is being halved.',
-        'Parentheses change the order: `(first + second) / 2`',
-      ],
-      solution: cpp`#include <iostream>
-
-int main() {
-  int first{};
-  int second{};
-  std::cin >> first >> second;
-  std::cout << "Average: " << (first + second) / 2 << '\n';
-  return 0;
-}`,
-      explain: 'Without parentheses the code worked out `first + (second / 2)`. Notice that the input 0 100 gave the right answer even with the bug. A test that happens to pass is why you need more than one.',
-    },
-    {
-      id: 'e1-find-the-gap',
+      id: 'p1-by-hand',
       kind: 'predict',
       noVerify: true,
-      level: 'Medium',
-      title: 'Find the gap',
-      character: 'Yoruichi',
-      show: 'Bleach',
-      lesson: 'e1-testing',
-      prompt: 'This code is meant to split a bill fairly between friends. With three of these inputs it looks correct. Which input exposes the flaw?',
-      code: cpp`#include <iostream>
-
-int main() {
-  int bill{};
-  int friends{};
-  std::cin >> bill >> friends;
-  std::cout << "Each pays " << bill / friends << '\n';
-  return 0;
-}`,
-      options: ['10 2', '9 3', '7 2', '8 4'],
-      answer: 2,
-      explain: 'With 7 and 2, integer division gives 3 each, which only covers 6 of the 7. The other inputs divide evenly, so they would never reveal the problem. Good test inputs are the ones that do not divide neatly.',
+      level: 'Easy',
+      title: 'Deal by hand',
+      character: 'Cana',
+      show: 'Fairy Tail',
+      lesson: 'p1-five-steps',
+      prompt: 'Before any code, work an example by hand. Cana deals 130 cards into decks of 52. How many full decks does she make, and how many cards are left over?',
+      options: ['2 decks, 26 left', '3 decks, 0 left', '2 decks, 2 left', '2 decks, 78 left'],
+      answer: 0,
+      explain: '130 divided by 52 is 2 whole decks. Those use 2 × 52 = 104 cards, and 130 − 104 leaves 26. The two calculations you just made, `cards / 52` and `cards - decks * 52`, are the program.',
     },
     {
-      id: 'e1-payslip-bug',
-      kind: 'bughunt',
-      level: 'Medium',
-      title: 'The pay slip',
-      character: 'Rangiku',
-      show: 'Bleach',
-      lesson: 'e1-reading-errors',
-      prompt: "Rangiku's pay slip is wrong. The bonus is supposed to be 10, added to the base pay she types in. The program compiles, so press Run and look below the output: the compiler has left a warning that points straight at the cause.",
+      id: 'p1-time-split',
+      kind: 'write',
+      level: 'Easy',
+      title: 'Operation clock',
+      character: 'Lena',
+      show: '86',
+      lesson: 'p1-plan-in-comments',
+      prompt: "Lena's operation log records time as a total number of minutes. Read that number and print it as hours and minutes, in the format shown. The plan is already written as comments: fill in each step, and run after each one.",
+      plan: [
+        'Read the total number of minutes.',
+        'Whole hours: total divided by 60.',
+        'Minutes left over: total minus the minutes used by those hours.',
+        'Print the hours and minutes in the format shown.',
+      ],
       starter: cpp`#include <iostream>
 
 int main() {
-  int base{};
-  int bonus;
-  std::cin >> base;
-  std::cout << "Pay: " << base + bonus << '\n';
+  // 1. Read the total number of minutes
+
+  // 2. Whole hours: total divided by 60
+
+  // 3. Minutes left over: total minus the minutes used by those hours
+
+  // 4. Print "H h M min"
+
   return 0;
 }`,
       tests: [
-        { name: 'Base pay of 40', stdin: '40', expected: 'Pay: 50' },
-        { name: 'No base pay', stdin: '0', expected: 'Pay: 10' },
-        { name: 'Base pay of 990', stdin: '990', expected: 'Pay: 1000' },
+        { name: '135 minutes', stdin: '135', expected: '2 h 15 min' },
+        { name: 'Exactly one hour', stdin: '60', expected: '1 h 0 min' },
+        { name: 'Under an hour', stdin: '59', expected: '0 h 59 min' },
       ],
       hints: [
-        'The warning says a variable is used uninitialized. Which one?',
-        '`bonus` is created on line 5 but never given a value.',
-        'Initialize it where it is created: `int bonus{ 10 };`',
+        'Step 1 is two lines: create an `int`, then read into it with `std::cin`.',
+        'Step 2: `int hours{ total / 60 };`',
+        'Step 3: the hours used up `hours * 60` minutes. Subtract that from the total.',
       ],
       solution: cpp`#include <iostream>
 
 int main() {
-  int base{};
-  int bonus{ 10 };
-  std::cin >> base;
-  std::cout << "Pay: " << base + bonus << '\n';
+  // 1. Read the total number of minutes
+  int total{};
+  std::cin >> total;
+
+  // 2. Whole hours: total divided by 60
+  int hours{ total / 60 };
+
+  // 3. Minutes left over: total minus the minutes used by those hours
+  int minutes{ total - hours * 60 };
+
+  // 4. Print "H h M min"
+  std::cout << hours << " h " << minutes << " min\n";
   return 0;
 }`,
-      explain: 'The compiler built the program but warned that `bonus` had no value. Warnings are free bug reports. Read them every time, even when the program appears to work.',
+      explain: 'Each comment turned into one or two lines. This "how many whole groups, and what is left over" pattern comes up constantly: time, money, packing items, splitting work.',
+    },
+    {
+      id: 'p1-plan-bug',
+      kind: 'bughunt',
+      level: 'Easy',
+      title: 'Check it against the plan',
+      character: 'Suzune',
+      show: 'Classroom of the Elite',
+      lesson: 'p1-plan-in-comments',
+      prompt: 'Suzune wrote the plan first, then the code. The plan is right, but one line of code does not do what its comment says. Compare each line with the comment above it.',
+      starter: cpp`#include <iostream>
+
+int main() {
+  // 1. Read the total number of days
+  int total{};
+  std::cin >> total;
+
+  // 2. Whole weeks: total divided by 7
+  int weeks{ total / 7 };
+
+  // 3. Days left over: total minus the days used by those weeks
+  int days{ total - weeks };
+
+  // 4. Print both
+  std::cout << "Weeks: " << weeks << ", days: " << days << '\n';
+  return 0;
+}`,
+      tests: [
+        { name: '10 days', stdin: '10', expected: 'Weeks: 1, days: 3' },
+        { name: 'Under a week', stdin: '6', expected: 'Weeks: 0, days: 6' },
+        { name: 'Exactly three weeks', stdin: '21', expected: 'Weeks: 3, days: 0' },
+      ],
+      hints: [
+        'Work 10 days by hand. How many days do the whole weeks use up?',
+        'The days used by the weeks are `weeks * 7`, not `weeks`.',
+      ],
+      solution: cpp`#include <iostream>
+
+int main() {
+  // 1. Read the total number of days
+  int total{};
+  std::cin >> total;
+
+  // 2. Whole weeks: total divided by 7
+  int weeks{ total / 7 };
+
+  // 3. Days left over: total minus the days used by those weeks
+  int days{ total - weeks * 7 };
+
+  // 4. Print both
+  std::cout << "Weeks: " << weeks << ", days: " << days << '\n';
+  return 0;
+}`,
+      explain: 'Step 3 says "the days used by those weeks", which is `weeks * 7`. Reading each line against its comment found the bug without running anything. Notice the input 6 passed even with the bug.',
+    },
+    {
+      id: 'p1-cards',
+      kind: 'write',
+      scaffold: 'blank',
+      level: 'Medium',
+      title: 'Deal the decks',
+      character: 'Cana',
+      show: 'Fairy Tail',
+      lesson: 'p1-plan-in-comments',
+      prompt: 'Cana deals a pile of cards into decks of 52. Read the number of cards, then print how many full decks she can make and how many cards are left over, in the format shown. This one starts from an empty file: write your plan first.',
+      plan: [
+        'Read the number of cards.',
+        'Full decks: cards divided by 52.',
+        'Left over: cards minus the cards used by those decks.',
+        'Print the two lines.',
+      ],
+      starter: '',
+      tests: [
+        { name: '130 cards', stdin: '130', expected: 'Decks: 2\nLeft: 26' },
+        { name: 'Exactly one deck', stdin: '52', expected: 'Decks: 1\nLeft: 0' },
+        { name: 'One card short', stdin: '51', expected: 'Decks: 0\nLeft: 51' },
+      ],
+      hints: [
+        'This is the same shape as the operation clock, with 52 in place of 60.',
+        'Start with the skeleton: `#include <iostream>`, then `int main() { ... return 0; }`.',
+        'Left over is `cards - decks * 52`.',
+      ],
+      solution: cpp`#include <iostream>
+
+int main() {
+  // 1. Read the number of cards
+  int cards{};
+  std::cin >> cards;
+
+  // 2. Full decks: cards divided by 52
+  int decks{ cards / 52 };
+
+  // 3. Left over: cards minus the cards used by those decks
+  int left{ cards - decks * 52 };
+
+  // 4. Print the two lines
+  std::cout << "Decks: " << decks << '\n';
+  std::cout << "Left: " << left << '\n';
+  return 0;
+}`,
+      explain: 'Same pattern, new problem. Recognising that a new problem has the shape of one you have already solved is a large part of what fluency feels like.',
+    },
+  ],
+
+  drills: [
+    {
+      id: 'd-groups',
+      pattern: 'Whole groups and leftovers',
+      title: 'Groups and leftovers',
+      lesson: 'p1-five-steps',
+      prompt: 'Read a total and a group size. Print how many full groups there are on one line, and how many are left over on the next.',
+      tests: [
+        { name: '17 in groups of 5', stdin: '17 5', expected: '3\n2' },
+        { name: 'Divides evenly', stdin: '10 5', expected: '2\n0' },
+        { name: 'Too few for a group', stdin: '3 4', expected: '0\n3' },
+      ],
+      hint: 'Groups: `total / size`. Left over: `total - groups * size`.',
+      solution: cpp`#include <iostream>
+
+int main() {
+  int total{};
+  int size{};
+  std::cin >> total >> size;
+  int groups{ total / size };
+  std::cout << groups << '\n';
+  std::cout << total - groups * size << '\n';
+  return 0;
+}`,
     },
   ],
 };

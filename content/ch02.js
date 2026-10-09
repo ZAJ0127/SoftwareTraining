@@ -259,6 +259,10 @@ int main() {
       character: 'Erza',
       show: 'Fairy Tail',
       lesson: 'c2-functions',
+      plan: [
+        "Define a void function battleCry that prints the cry.",
+        "In main, call it three times.",
+      ],
       prompt: 'Erza fights in bursts. Write a function called `battleCry` that prints `Requip!` on its own line, then call it three times from `main`.',
       starter: cpp`#include <iostream>
 
@@ -297,6 +301,11 @@ int main() {
       character: 'Yukino',
       show: 'Fairy Tail',
       lesson: 'c2-return-values',
+      plan: [
+        "Define goldKeys, returning 2.",
+        "Define blackKeys, returning 1.",
+        "main adds the two calls and prints the total. It is already written.",
+      ],
       prompt: 'Yukino carries two gold keys and one black key. `main` is already written. Add the two functions it calls: `goldKeys` returns 2 and `blackKeys` returns 1.',
       starter: cpp`#include <iostream>
 
@@ -335,6 +344,11 @@ int main() {
       character: 'Wendy',
       show: 'Fairy Tail',
       lesson: 'c2-parameters',
+      plan: [
+        "Define heal, taking the current HP as a parameter.",
+        "Return the HP plus 50.",
+        "main reads the HP and prints the result of heal. It is already written.",
+      ],
       prompt: "Wendy's spell restores 50 HP. `main` is already written. Add the function `heal`, which takes a patient's HP and returns it with 50 added.",
       starter: cpp`#include <iostream>
 
@@ -425,18 +439,15 @@ int main() {
       character: 'Nobara',
       show: 'Jujutsu Kaisen',
       lesson: 'c2-parameters',
-      prompt: 'Nobara plans her nails before a mission. `main` is already written. Add the function `nailsNeeded`, which takes the number of curses and the nails per curse, and returns how many nails to pack.',
-      starter: cpp`#include <iostream>
-
-// Write nailsNeeded here
-
-int main() {
-  int curses{};
-  int perCurse{};
-  std::cin >> curses >> perCurse;
-  std::cout << "Nails: " << nailsNeeded(curses, perCurse) << '\n';
-  return 0;
-}`,
+      scaffold: 'blank',
+      plan: [
+        "Define nailsNeeded with two int parameters: the curses and the nails per curse.",
+        "Return curses times nails per curse.",
+        "In main, read the two numbers.",
+        "Print \"Nails: \" followed by the result of calling nailsNeeded.",
+      ],
+      prompt: 'Nobara plans her nails before a mission. Write a function `nailsNeeded` that takes the number of curses and the nails per curse, and returns how many nails to pack. Then write `main`: read the two numbers and print the result in the format shown. This one starts from an empty file.',
+      starter: '',
       tests: [
         { name: '3 curses, 4 nails each', stdin: '3 4', expected: 'Nails: 12' },
         { name: 'A quiet night', stdin: '0 9', expected: 'Nails: 0' },
@@ -542,6 +553,10 @@ int encore(int shows) {
       character: 'Kate Bishop and Kate Kane',
       show: 'Marvel and DC',
       lesson: 'c2-namespaces',
+      plan: [
+        "Print \"Bishop: \" followed by marvel::gadgets().",
+        "Print \"Kane: \" followed by dc::gadgets().",
+      ],
       prompt: 'Two functions share the name `gadgets`, kept apart by namespaces. Complete `main` so it prints how many gadgets each Kate carries, in the format shown.',
       starter: cpp`#include <iostream>
 
@@ -610,21 +625,15 @@ int main() {
       character: 'Mirko',
       show: 'My Hero Academia',
       lesson: 'c2-parameters',
-      prompt: "Mirko's combo is double her kicks, plus one finishing blow. `doubleIt` and `main` are already written. Add the function `combo`, and have it call `doubleIt` to do the doubling.",
-      starter: cpp`#include <iostream>
-
-int doubleIt(int n) {
-  return n * 2;
-}
-
-// Write combo here
-
-int main() {
-  int kicks{};
-  std::cin >> kicks;
-  std::cout << "Combo: " << combo(kicks) << '\n';
-  return 0;
-}`,
+      scaffold: 'blank',
+      plan: [
+        "Define doubleIt: return n times 2.",
+        "Define combo: return doubleIt(kicks) plus 1.",
+        "In main, read the number of kicks.",
+        "Print \"Combo: \" followed by combo(kicks).",
+      ],
+      prompt: "Mirko's combo is double her kicks, plus one finishing blow. Write `doubleIt`, which returns a number times two, and `combo`, which calls `doubleIt` and adds the finishing blow. Then write `main`: read the number of kicks and print the combo in the format shown. This one starts from an empty file.",
+      starter: '',
       tests: [
         { name: 'Three kicks', stdin: '3', expected: 'Combo: 7' },
         { name: 'Finisher only', stdin: '0', expected: 'Combo: 1' },
@@ -708,6 +717,12 @@ int main() {
       character: 'Lucy',
       show: 'Fairy Tail',
       lesson: 'c2-parameters',
+      plan: [
+        "netReward: the reward minus the damage.",
+        "shareEach: the net divided by the members.",
+        "leftOver: the net minus shareEach times the members.",
+        "main: read the three numbers, store the net, print the three lines.",
+      ],
       prompt: "Lucy's team finished a job, and wrecked half the town doing it, as usual. Build a payout calculator so she knows what she is taking home. The program reads three whole numbers: the reward, the number of team members, and the cost of the damage.",
       steps: [
         'Write `int netReward(int reward, int damage)`. It returns the reward after the damage is paid for.',
@@ -770,6 +785,183 @@ int main() {
   return 0;
 }`,
       explain: 'Each function does one small job and can be checked on its own, and `leftOver` reuses `shareEach` so the sharing rule lives in one place. Splitting a problem like this is the core skill the rest of programming builds on.',
+    },
+  ],
+
+  drills: [
+    {
+      id: 'd-void-fn',
+      pattern: 'A function that does a job',
+      title: 'Say it twice',
+      lesson: 'c2-functions',
+      prompt: 'Write a `void` function called `greet` that prints `Hi` on its own line. Call it twice from `main`.',
+      tests: [{ name: 'Two greetings', stdin: '', expected: 'Hi\nHi' }],
+      mustMatch: [{ re: /void\s+greet\s*\(\s*\)/, msg: 'Define the function as `void greet()`.' }],
+      hint: 'Define `greet` above `main`, then call it with `greet();`',
+      solution: cpp`#include <iostream>
+
+void greet() {
+  std::cout << "Hi\n";
+}
+
+int main() {
+  greet();
+  greet();
+  return 0;
+}`,
+    },
+    {
+      id: 'd-return-fn',
+      pattern: 'A function that returns a value',
+      title: 'Lucky seven',
+      lesson: 'c2-return-values',
+      prompt: 'Write `int seven()`, which returns 7. In `main`, print `seven() * 2`.',
+      tests: [{ name: 'Prints 14', stdin: '', expected: '14' }],
+      mustMatch: [{ re: /int\s+seven\s*\(\s*\)/, msg: 'Define the function as `int seven()`.' }],
+      hint: 'The body is one line: `return 7;`',
+      solution: cpp`#include <iostream>
+
+int seven() {
+  return 7;
+}
+
+int main() {
+  std::cout << seven() * 2 << '\n';
+  return 0;
+}`,
+    },
+    {
+      id: 'd-param-fn',
+      pattern: 'A function with a parameter',
+      title: 'Triple',
+      lesson: 'c2-parameters',
+      prompt: 'Write `int triple(int n)`. Read a number and print its triple using the function.',
+      tests: [
+        { name: 'Triple 4', stdin: '4', expected: '12' },
+        { name: 'Triple 0', stdin: '0', expected: '0' },
+      ],
+      mustMatch: [{ re: /int\s+triple\s*\(\s*int\s+\w+\s*\)/, msg: 'Define the function as `int triple(int n)`.' }],
+      hint: 'Inside the function, `return n * 3;`. In `main`, print `triple(x)`.',
+      solution: cpp`#include <iostream>
+
+int triple(int n) {
+  return n * 3;
+}
+
+int main() {
+  int x{};
+  std::cin >> x;
+  std::cout << triple(x) << '\n';
+  return 0;
+}`,
+    },
+    {
+      id: 'd-two-params',
+      pattern: 'A function with two parameters',
+      title: 'Area',
+      lesson: 'c2-parameters',
+      prompt: 'Write `int area(int width, int height)`. Read a width and a height, then print the area using the function.',
+      tests: [
+        { name: '3 by 5', stdin: '3 5', expected: '15' },
+        { name: 'A line', stdin: '7 1', expected: '7' },
+      ],
+      mustMatch: [{ re: /int\s+area\s*\(\s*int\s+\w+\s*,\s*int\s+\w+\s*\)/, msg: 'Define the function as `int area(int width, int height)`.' }],
+      hint: 'Two parameters are separated by a comma, each with its own type.',
+      solution: cpp`#include <iostream>
+
+int area(int width, int height) {
+  return width * height;
+}
+
+int main() {
+  int w{};
+  int h{};
+  std::cin >> w >> h;
+  std::cout << area(w, h) << '\n';
+  return 0;
+}`,
+    },
+    {
+      id: 'd-fn-calls-fn',
+      pattern: 'A function that uses another function',
+      title: 'Sum of squares',
+      lesson: 'c2-parameters',
+      prompt: 'Write `int square(int n)` and `int sumOfSquares(int a, int b)`, which calls `square`. Read two numbers and print the sum of their squares.',
+      tests: [
+        { name: '3 and 4', stdin: '3 4', expected: '25' },
+        { name: '1 and 0', stdin: '1 0', expected: '1' },
+      ],
+      mustMatch: [{ re: /int\s+sumOfSquares\s*\([^)]*\)\s*\{[^}]*square\s*\(/, msg: '`sumOfSquares` should call `square` rather than multiplying directly.' }],
+      hint: '`square` must be defined above `sumOfSquares`, which returns `square(a) + square(b)`.',
+      solution: cpp`#include <iostream>
+
+int square(int n) {
+  return n * n;
+}
+
+int sumOfSquares(int a, int b) {
+  return square(a) + square(b);
+}
+
+int main() {
+  int a{};
+  int b{};
+  std::cin >> a >> b;
+  std::cout << sumOfSquares(a, b) << '\n';
+  return 0;
+}`,
+    },
+    {
+      id: 'd-forward',
+      pattern: 'Forward declaration',
+      title: 'Main comes first',
+      lesson: 'c2-forward-declarations',
+      prompt: 'Write `main` first, and define `int half(int n)` below it. Read a number and print half of it.',
+      tests: [
+        { name: 'Half of 10', stdin: '10', expected: '5' },
+        { name: 'Half of 9', stdin: '9', expected: '4' },
+      ],
+      mustMatch: [{ re: /int\s+main\s*\([\s\S]*int\s+half\s*\(\s*int\s+\w+\s*\)\s*\{/, msg: 'Define `half` below `main`, with a forward declaration above `main`.' }],
+      hint: 'Above `main`, declare it: `int half(int n);`',
+      solution: cpp`#include <iostream>
+
+int half(int n);
+
+int main() {
+  int n{};
+  std::cin >> n;
+  std::cout << half(n) << '\n';
+  return 0;
+}
+
+int half(int n) {
+  return n / 2;
+}`,
+    },
+    {
+      id: 'd-namespace',
+      pattern: 'Namespaces',
+      title: 'Bounty',
+      lesson: 'c2-namespaces',
+      prompt: 'Put `int bounty()`, returning 500, inside a namespace called `pirate`. Print `pirate::bounty()` from `main`.',
+      tests: [{ name: 'Prints 500', stdin: '', expected: '500' }],
+      mustMatch: [
+        { re: /namespace\s+pirate\b/, msg: 'Create a namespace called `pirate`.' },
+        { re: /pirate\s*::\s*bounty\s*\(/, msg: 'Call the function as `pirate::bounty()`.' },
+      ],
+      hint: '`namespace pirate { ... }` wraps the function definition.',
+      solution: cpp`#include <iostream>
+
+namespace pirate {
+  int bounty() {
+    return 500;
+  }
+}
+
+int main() {
+  std::cout << pirate::bounty() << '\n';
+  return 0;
+}`,
     },
   ],
 };

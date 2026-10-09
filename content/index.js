@@ -66,13 +66,13 @@ export const tracks = [
     id: 'eng',
     title: 'Engineering',
     unit: 'Unit',
-    blurb: 'The habits that make an engineer reliable, and that interviews test: debugging, testing, design, data structures and how software gets built. Unit E1 needs only C++ chapter 1.',
+    blurb: 'The habits that make an engineer reliable, and that interviews test: planning, debugging, testing, design, data structures and how software gets built. Units E1 and E2 need only C++ chapter 1.',
     // The habits and bigger-picture knowledge that make an engineer reliable,
     // and that interviews test. Units use C++ as the working language.
     chapters: [
-      { num: 'E1', title: 'Finding and fixing bugs', load: () => import('./e1.js') },
-      { num: 'E2', title: 'Writing code other people can read' },
-      { num: 'E3', title: 'Breaking a problem down' },
+      { num: 'E1', title: 'Breaking a problem down', load: () => import('./e1.js') },
+      { num: 'E2', title: 'Finding and fixing bugs', load: () => import('./e2.js') },
+      { num: 'E3', title: 'Writing code other people can read' },
       { num: 'E4', title: 'Testing' },
       { num: 'E5', title: 'Data structures' },
       { num: 'E6', title: 'How fast is it? Complexity' },

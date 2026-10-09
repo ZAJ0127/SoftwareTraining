@@ -1,7 +1,7 @@
 import { tracks } from './content/index.js';
-import { runCpp, normalize } from './runner.js';
+import { runCpp, normalize, stripComments } from './runner.js';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const STORE_KEY = 'codedojo.v1';
 
 /* ---------- small helpers ---------- */
@@ -72,11 +72,18 @@ function hashString(s) {
 
 /* ---------- saved progress ---------- */
 
-const blank = () => ({ v: 1, lessons: {}, done: {}, review: {}, days: [], code: {}, hints: {}, daily: null, tab: 'cpp' });
+const blank = () => ({
+  v: 1, lessons: {}, done: {}, review: {}, days: [], code: {}, hints: {}, daily: null, tab: 'cpp',
+  plans: {},          // challenge id -> the plan lines you wrote
+  reviewStart: {},    // challenge id -> the review due date whose attempt has begun
+  drills: {},         // drill id -> { box, due, reps, best, last }
+  drillNew: null,     // { date, n }: new drills introduced today
+  settings: { blank: false },
+});
 let state = blank();
 try {
   const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
-  if (saved && saved.v === 1) state = { ...blank(), ...saved };
+  if (saved && saved.v === 1) state = { ...blank(), ...saved, settings: { ...blank().settings, ...(saved.settings || {}) } };
 } catch { /* start fresh */ }
 
 function save() {
@@ -102,6 +109,8 @@ let lessonById = {};
 let challengeById = {};
 let allLessons = [];
 let allChallenges = [];
+let allDrills = [];
+let drillById = {};
 
 async function loadContent() {
   const out = [];
@@ -121,6 +130,62 @@ async function loadContent() {
   allChallenges = out.flatMap((c) => c.challenges.map((x) => ({ ...x, chapter: c.num })));
   lessonById = Object.fromEntries(allLessons.map((l) => [l.id, l]));
   challengeById = Object.fromEntries(allChallenges.map((c) => [c.id, c]));
+  allDrills = out.flatMap((c) => (c.drills || []).map((d) => ({ ...d, chapter: c.num, unit: c.unit })));
+  drillById = Object.fromEntries(allDrills.map((d) => [d.id, d]));
+}
+
+/* ---------- pattern drills (spaced repetition) ---------- */
+
+// Days until a drill comes back, by box. A clean pass moves it up a box;
+// needing help sends it back to the first box.
+const BOX_DAYS = [1, 2, 4, 8, 16, 32];
+const MASTERED_BOX = 3;
+const NEW_PER_DAY = 3;
+
+const drillUnlocked = (d) => !!state.lessons[d.lesson];
+function drillQueue() {
+  const t = dayKey();
+  const due = allDrills
+    .filter((d) => state.drills[d.id] && state.drills[d.id].due <= t && drillUnlocked(d))
+    .sort((a, b) => (state.drills[a.id].due < state.drills[b.id].due ? -1 : 1));
+  const introduced = state.drillNew && state.drillNew.date === t ? state.drillNew.n : 0;
+  const fresh = allDrills.filter((d) => !state.drills[d.id] && drillUnlocked(d)).slice(0, Math.max(0, NEW_PER_DAY - introduced));
+  return [...due, ...fresh];
+}
+function drillStatus(d) {
+  const e = state.drills[d.id];
+  if (!drillUnlocked(d) && !e) return 'locked';
+  if (!e) return 'new';
+  return e.box >= MASTERED_BOX ? 'mastered' : 'learning';
+}
+function recordDrill(d, clean, ms) {
+  const t = dayKey();
+  let e = state.drills[d.id];
+  if (!e) {
+    e = { box: -1, reps: 0 };
+    const n = state.drillNew && state.drillNew.date === t ? state.drillNew.n : 0;
+    state.drillNew = { date: t, n: n + 1 };
+  }
+  e.box = clean ? Math.min(e.box + 1, BOX_DAYS.length - 1) : 0;
+  e.due = dayKey(addDays(BOX_DAYS[e.box]));
+  e.reps += 1;
+  e.last = t;
+  if (clean && ms && (!e.best || ms < e.best)) e.best = ms;
+  state.drills[d.id] = e;
+  delete state.code['d:' + d.id];
+  markDay();
+  save();
+  return e;
+}
+const fmtTime = (ms) => {
+  const s = Math.max(1, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+function whenLabel(due) {
+  const days = Math.round((new Date(due + 'T00:00') - new Date(dayKey() + 'T00:00')) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  return `in ${days} days`;
 }
 
 const KIND = { write: 'Write code', bughunt: 'Bug hunt', predict: 'Read the code', project: 'Mini project' };
@@ -225,6 +290,48 @@ function showResult(r, box) {
   if (r.warnings && r.warnings.trim()) block('Compiler warnings', tidy(r.warnings));
 }
 
+// Runs source checks, then every test. Draws the results into `box`.
+// Returns true when everything passed.
+async function checkCode(code, tests, rules, box) {
+  const failedRules = (rules || []).filter((r) => !r.re.test(stripComments(code)));
+  const rows = [];
+  let stop = null;
+  if (!failedRules.length) {
+    for (const t of tests) {
+      const r = await runCpp(code, t.stdin);
+      if (r.status === 'service-error' || r.status === 'compile-error') { stop = r; break; }
+      const got = r.status === 'timeout' ? '(stopped: ran too long)' : r.stdout;
+      rows.push({ t, pass: r.status === 'ok' && normalize(got) === normalize(t.expected), got });
+    }
+  }
+  if (stop) { showResult(stop, box); return false; }
+  const passed = rows.filter((r) => r.pass).length;
+  const all = !failedRules.length && passed === tests.length;
+  put(box,
+    h('div', null,
+      h('div', { class: 'row between' },
+        h('h2', { class: 'h-section' }, 'Tests'),
+        h('span', { class: 'small', style: `font-weight: 600; color: var(${all ? '--pass' : '--warn'})` },
+          failedRules.length ? 'Not run yet' : `${passed} of ${tests.length} passing`)),
+      failedRules.map((r) => h('div', { class: 'test fail' },
+        h('span', { class: 'status' }, icon('cross', 16, 'Failed')),
+        h('div', { class: 'grow' }, rich(r.msg)))),
+      rows.map(({ t, pass, got }) => h('div', { class: 'test ' + (pass ? 'pass' : 'fail') },
+        h('span', { class: 'status ' + (pass ? 'done' : '') }, icon(pass ? 'check' : 'cross', 16, pass ? 'Passed' : 'Failed')),
+        h('div', { class: 'grow' }, t.name,
+          pass ? null : h('div', { class: 'detail' },
+            (t.stdin ? `input:    ${t.stdin.replace(/\n/g, ' ')}\n` : '') +
+            `expected: ${normalize(t.expected).replace(/\n/g, '\n          ')}\n` +
+            `got:      ${(normalize(got) || '(nothing)').replace(/\n/g, '\n          ')}`))))));
+  return all;
+}
+
+function planList(plan, title = 'A plan that works') {
+  return h('div', { class: 'stack-sm' },
+    h('h3', { class: 'h-section' }, title),
+    h('ol', { class: 'steps' }, plan.map((step) => h('li', null, rich(step)))));
+}
+
 async function busy(button, work) {
   const row = button.closest('.btn-row') || button.parentElement;
   const buttons = [...row.querySelectorAll('button')];
@@ -262,6 +369,17 @@ function challengeRow(c) {
     statusIcon(kind),
     h('span', { class: 'grow' }, c.title, h('div', { class: 'sub' }, `${kindLabel(c)} · ${c.character}`)),
     h('span', { class: 'sub' }, c.level));
+}
+function drillRow(d) {
+  const st = drillStatus(d);
+  const e = state.drills[d.id];
+  const sub = st === 'locked' ? `After lesson: ${lessonById[d.lesson] ? lessonById[d.lesson].title : ''}`
+    : st === 'new' ? 'New'
+    : st === 'mastered' ? `Mastered · next ${whenLabel(e.due)}`
+    : `Learning · next ${whenLabel(e.due)}`;
+  return h('a', { class: 'item', href: '#/drill/' + d.id },
+    st === 'mastered' ? statusIcon('done') : h('span', { class: 'status todo', role: 'img', 'aria-label': st }),
+    h('span', { class: 'grow' }, d.pattern, h('div', { class: 'sub' }, sub)));
 }
 function lessonRow(lesson, withUnit) {
   const l = lessonById[lesson.id];
@@ -323,6 +441,24 @@ function viewToday() {
   }
 
   const reviews = dueReviews();
+  const queue = drillQueue();
+  const anyDrills = allDrills.some(drillUnlocked);
+  let drillCard = null;
+  if (queue.length) {
+    drillCard = h('section', { class: 'card drill-card' },
+      h('div', { class: 'row between' },
+        h('span', { class: 'eyebrow' }, 'Pattern drills'),
+        h('span', { class: 'small muted' }, `about ${Math.max(2, queue.length * 2)} min`)),
+      h('h2', { class: 'h-title', style: 'font-size: 22px' }, `${queue.length} ${queue.length === 1 ? 'drill' : 'drills'} today`),
+      h('p', { class: 'soft' }, 'Short programs written from an empty file. Each one comes back on a schedule until you can write it without thinking.'),
+      h('a', { class: 'btn primary', href: '#/drills' }, 'Start drills', icon('arrow')));
+  } else if (anyDrills) {
+    const dues = Object.values(state.drills).map((e) => e.due).sort();
+    drillCard = h('a', { class: 'item', href: '#/track' },
+      h('span', { class: 'status done' }, icon('check', 18)),
+      h('span', { class: 'grow' }, 'Drills done for today',
+        h('div', { class: 'sub' }, dues.length ? `Next one due ${whenLabel(dues[0])}` : 'New ones unlock as you finish lessons')));
+  }
   put(app, 
     h('header', { class: 'row between' },
       h('div', null,
@@ -330,13 +466,14 @@ function viewToday() {
         h('div', { class: 'small muted' }, now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }))),
       h('div', { class: 'pill' }, h('span', { style: 'color: var(--warn); display: inline-flex' }, icon('flame', 16)), `${s} day streak`)),
     h('div', { class: 'week' }, week),
+    drillCard,
     main,
     more.length ? h('section', { class: 'stack' },
       h('h2', { class: 'h-section' }, 'Continue learning'),
       h('div', { class: 'list' }, more.map((l) => lessonRow(l, true)))) : null,
     reviews.length ? h('section', { class: 'stack' },
       h('h2', { class: 'h-section' }, 'Due for review'),
-      h('p', { class: 'note' }, 'Challenges you needed help with come back after two days.'),
+      h('p', { class: 'note' }, 'Challenges you needed help with come back after two days, starting from a blank file.'),
       h('div', { class: 'list' }, reviews.map(challengeRow))) : null,
     h('section', { class: 'stack' },
       h('h2', { class: 'h-section' }, 'Your tracks'),
@@ -366,7 +503,8 @@ function viewTrack() {
       h('div', { class: 'group-label' }, 'Lessons'),
       data.lessons.map((l) => lessonRow(l)),
       h('div', { class: 'group-label' }, 'Challenges'),
-      data.challenges.map(challengeRow));
+      data.challenges.map(challengeRow),
+      data.drills && data.drills.length ? [h('div', { class: 'group-label' }, 'Pattern drills'), data.drills.map((d) => drillRow(drillById[d.id]))] : null);
   });
   put(app, 
     h('header', { class: 'stack' },
@@ -458,10 +596,10 @@ function viewLesson(id) {
       icon('arrow')));
 }
 
-function recordSolved(c, peeked) {
-  if (!state.done[c.id]) state.done[c.id] = { date: dayKey(), usedSolution: peeked };
-  else if (!peeked) state.done[c.id].usedSolution = false;
-  if (peeked) state.review[c.id] = dayKey(addDays(2));
+function recordSolved(c, helped) {
+  if (!state.done[c.id]) state.done[c.id] = { date: dayKey(), usedSolution: helped };
+  else if (!helped) state.done[c.id].usedSolution = false;
+  if (helped) state.review[c.id] = dayKey(addDays(2));
   else delete state.review[c.id];
   markDay();
   save();
@@ -510,10 +648,55 @@ function viewChallenge(id) {
     return;
   }
 
+  // A review always starts a fresh attempt: saved code, plan and hints are cleared once.
+  const dueReview = !!(state.review[id] && state.review[id] <= dayKey());
+  if (dueReview && state.reviewStart[id] !== state.review[id]) {
+    delete state.code[id];
+    delete state.plans[id];
+    delete state.hints[id];
+    state.reviewStart[id] = state.review[id];
+    save();
+  }
+  const codeKind = c.kind === 'write' || c.kind === 'project';
+  const blankMode = codeKind && (c.scaffold === 'blank' || dueReview || state.settings.blank);
+  const planComments = () => (state.plans[id] || []).map((line) => '// ' + line).join('\n') + (state.plans[id] && state.plans[id].length ? '\n\n' : '');
+  const startCode = () => (blankMode ? planComments() : c.starter);
+
+  // Blank mode begins with a planning step.
+  if (blankMode && !state.plans[id] && state.code[id] == null) {
+    const planBox = h('textarea', {
+      class: 'stdin plan-input', id: 'plan', rows: '5', spellcheck: 'true', autocapitalize: 'sentences',
+      placeholder: 'Read the two numbers\nWork out …\nPrint the result',
+    });
+    const startBtn = h('button', { class: 'btn primary', type: 'button', disabled: true }, 'Start coding', icon('arrow'));
+    planBox.addEventListener('input', () => { startBtn.disabled = !planBox.value.trim(); });
+    startBtn.addEventListener('click', () => {
+      state.plans[id] = planBox.value.split('\n').map((l) => l.replace(/^\s*(\d+[.)]|[-*•])\s*/, '').trim()).filter(Boolean)
+        .map((l, i) => `${i + 1}. ${l}`);
+      save();
+      viewChallenge(id);
+    });
+    put(app, ...head,
+      dueReview ? h('div', { class: 'tip' }, h('b', null, 'Review: '), 'last time you needed help with this one. Start again from nothing.') : null,
+      h('div', null,
+        h('div', { class: 'output-label' }, h('span', null, 'Expected output'), h('span', null, c.tests[0].stdin ? 'for the input ' + c.tests[0].stdin.replace(/\n/g, ' ') : '')),
+        h('pre', { class: 'output expected' }, c.tests[0].expected)),
+      h('section', { class: 'stack' },
+        h('h2', { class: 'h-section' }, 'Step 1: plan'),
+        h('p', { class: 'note' }, 'Before any code, write the steps in plain English, one per line. What comes in? What has to come out? What happens in between? Working one example by hand first helps.'),
+        h('label', { class: 'field-label', for: 'plan' }, 'Your plan'),
+        planBox,
+        startBtn,
+        h('button', { class: 'btn small ghost', type: 'button', onclick: () => { state.plans[id] = []; save(); viewChallenge(id); } }, 'Skip planning this time')),
+      lessonLink);
+    return;
+  }
+
   let peeked = false;
+  const helped = () => peeked || (state.hints[id] || 0) >= c.hints.length;
   const sample = c.tests[0];
   const usesInput = c.tests.some((t) => t.stdin);
-  const ed = makeEditor(state.code[id] ?? c.starter, { onChange: (v) => { state.code[id] = v; save(); } });
+  const ed = makeEditor(state.code[id] ?? startCode(), { onChange: (v) => { state.code[id] = v; save(); } });
   const stdin = usesInput
     ? h('textarea', { class: 'stdin', id: 'stdin', rows: '1', spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off' }, sample.stdin)
     : null;
@@ -526,35 +709,15 @@ function viewChallenge(id) {
   }));
 
   checkBtn.addEventListener('click', () => busy(checkBtn, async () => {
-    const rows = [];
-    let stop = null;
-    for (const t of c.tests) {
-      const r = await runCpp(ed.value, t.stdin);
-      if (r.status === 'service-error' || r.status === 'compile-error') { stop = r; break; }
-      const got = r.status === 'timeout' ? '(stopped: ran too long)' : r.stdout;
-      rows.push({ t, pass: r.status === 'ok' && normalize(got) === normalize(t.expected), got });
-    }
-    if (stop) return showResult(stop, results);
-    const passed = rows.filter((r) => r.pass).length;
-    const all = passed === rows.length;
-    put(results, 
-      h('div', null,
-        h('div', { class: 'row between' },
-          h('h2', { class: 'h-section' }, 'Tests'),
-          h('span', { class: 'small', style: `font-weight: 600; color: var(${all ? '--pass' : '--warn'})` }, `${passed} of ${rows.length} passing`)),
-        rows.map(({ t, pass, got }) => h('div', { class: 'test ' + (pass ? 'pass' : 'fail') },
-          h('span', { class: 'status ' + (pass ? 'done' : '') }, icon(pass ? 'check' : 'cross', 16, pass ? 'Passed' : 'Failed')),
-          h('div', { class: 'grow' }, t.name,
-            pass ? null : h('div', { class: 'detail' },
-              (t.stdin ? `input:    ${t.stdin.replace(/\n/g, ' ')}\n` : '') +
-              `expected: ${normalize(t.expected).replace(/\n/g, '\n          ')}\n` +
-              `got:      ${(normalize(got) || '(nothing)').replace(/\n/g, '\n          ')}`))))));
+    const all = await checkCode(ed.value, c.tests, c.mustMatch, results);
     if (all) {
-      recordSolved(c, peeked);
+      const help = helped();
+      recordSolved(c, help);
       results.append(h('div', { class: 'banner' },
         h('b', null, 'Solved'),
         h('span', null, rich(c.explain)),
-        peeked ? h('span', { class: 'small' }, 'You looked at the solution, so this one will come back for review in two days.') : null),
+        help ? h('span', { class: 'small' }, `You used ${peeked ? 'the solution' : 'every hint'}, so this one comes back in two days for a rewrite from a blank file.`) : null),
+        c.plan ? planList(c.plan) : null,
         afterLinks(c));
     }
   }));
@@ -579,7 +742,7 @@ function viewChallenge(id) {
       put(solBox, h('button', { class: 'btn small', type: 'button', onclick: () => drawSolution('ask') }, 'Show solution'));
     } else if (stage === 'ask') {
       put(solBox, 
-        h('p', { class: 'note' }, 'Seeing the solution sends this challenge to your review queue, so you get another go at it in two days.'),
+        h('p', { class: 'note' }, 'Seeing the solution sends this challenge to your review queue. In two days it comes back as a blank file for you to write again.'),
         h('div', { class: 'btn-row' },
           h('button', { class: 'btn small', type: 'button', onclick: () => drawSolution('closed') }, 'Keep trying'),
           h('button', { class: 'btn small primary', type: 'button', onclick: () => drawSolution('open') }, 'Show it')));
@@ -592,18 +755,26 @@ function viewChallenge(id) {
           h('div', { class: 'code-head' }, h('span', null, 'Solution'),
             h('button', { class: 'btn small ghost', type: 'button', onclick: () => { ed.value = c.solution; window.scrollTo({ top: 0 }); } }, 'Load into editor')),
           h('pre', { class: 'code-static' }, c.solution)),
+        c.plan ? planList(c.plan) : null,
         h('p', { class: 'soft' }, rich(c.explain)));
     }
   };
   drawSolution('closed');
 
+  const yourPlan = state.plans[id] && state.plans[id].length ? state.plans[id] : null;
   put(app, ...head,
+    dueReview && blankMode ? h('div', { class: 'tip' }, h('b', null, 'Review: '), 'start again from nothing.') : null,
+    dueReview && c.kind === 'bughunt' ? h('div', { class: 'tip' }, h('b', null, 'Review: '), 'the bugs are back. Find them again without the hints.') : null,
+    blankMode ? h('p', { class: 'note' },
+      rich('Blank file: write the whole program yourself, including `#include` and `main`.'),
+      c.scaffold !== 'blank' ? ' Anything the prompt says is already written, you write too.' : '',
+      yourPlan ? ' Your plan is at the top as comments. Turn each line into code, and run after each step.' : '') : null,
     h('div', null,
       h('div', { class: 'output-label' }, h('span', null, 'Expected output'), h('span', null, sample.stdin ? 'for the input ' + sample.stdin.replace(/\n/g, ' ') : '')),
       h('pre', { class: 'output expected' }, sample.expected)),
     h('div', { class: 'code-box' },
       h('div', { class: 'code-head' }, h('span', null, 'main.cpp'),
-        h('button', { class: 'btn small ghost', type: 'button', onclick: () => { ed.value = c.starter; } }, 'Reset code')),
+        h('button', { class: 'btn small ghost', type: 'button', onclick: () => { ed.value = startCode(); } }, blankMode ? 'Clear code' : 'Reset code')),
       ed.parts),
     stdin ? h('div', null, h('label', { class: 'field-label', for: 'stdin' }, 'Input for Run (what std::cin reads)'), stdin) : null,
     h('div', { class: 'btn-row' }, runBtn, checkBtn),
@@ -612,10 +783,108 @@ function viewChallenge(id) {
     lessonLink);
 }
 
+function viewDrill(id) {
+  const queue = drillQueue();
+  const d = id ? drillById[id] : queue[0];
+  if (id && !d) return viewMissing();
+  if (!d) {
+    const dues = Object.values(state.drills).map((e) => e.due).sort();
+    put(app,
+      topbar('Pattern drills'),
+      h('div', { class: 'card' },
+        h('h1', { class: 'h-title' }, 'Drills done for today'),
+        h('p', { class: 'soft' }, dues.length
+          ? `Next one is due ${whenLabel(dues[0])}. Writing the same small programs on different days is what moves them from "I recognise this" to "I can write this".`
+          : 'Pattern drills unlock as you finish lessons.'),
+        h('a', { class: 'btn', href: '#/today' }, 'Back to Today')));
+    return;
+  }
+
+  const key = 'd:' + d.id;
+  const started = Date.now();
+  let helped = false;
+  let recorded = false;
+  const sample = d.tests[0];
+  const usesInput = d.tests.some((t) => t.stdin);
+  const ed = makeEditor(state.code[key] ?? '', { onChange: (v) => { state.code[key] = v; save(); } });
+  const stdin = usesInput
+    ? h('textarea', { class: 'stdin', id: 'stdin', rows: '1', spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off' }, sample.stdin)
+    : null;
+  const results = h('div', { class: 'stack', 'aria-live': 'polite' });
+  const runBtn = h('button', { class: 'btn', type: 'button' }, playIcon(), 'Run');
+  const checkBtn = h('button', { class: 'btn primary', type: 'button' }, icon('check'), 'Check');
+  const nextDrill = () => { if (location.hash === '#/drills') viewDrill(); else location.hash = '#/drills'; window.scrollTo(0, 0); };
+
+  runBtn.addEventListener('click', () => busy(runBtn, async () => {
+    showResult(await runCpp(ed.value, stdin ? stdin.value : ''), results);
+  }));
+  checkBtn.addEventListener('click', () => busy(checkBtn, async () => {
+    if (!(await checkCode(ed.value, d.tests, d.mustMatch, results))) return;
+    const ms = Date.now() - started;
+    let e = state.drills[d.id];
+    if (!recorded) { e = recordDrill(d, !helped, ms); recorded = true; }
+    else { delete state.code[key]; save(); }
+    const left = drillQueue().length;
+    results.append(
+      h('div', { class: 'banner' },
+        h('b', null, helped ? 'Done, with help' : `Done in ${fmtTime(ms)}`),
+        h('span', null, helped
+          ? 'Because you needed help, this one comes back tomorrow.'
+          : `Next time: ${whenLabel(e.due)}.${e.best === ms && e.reps > 1 ? ' That is your fastest yet.' : ''}`)),
+      h('div', { class: 'btn-row' },
+        h('a', { class: 'btn', href: '#/today' }, 'Today'),
+        !id && left ? h('button', { class: 'btn primary', type: 'button', onclick: nextDrill }, `Next drill (${left} left)`) : null));
+  }));
+
+  const stuck = h('div', { class: 'stack-sm' });
+  const drawStuck = (stage) => {
+    if (stage === 0) {
+      put(stuck, h('button', { class: 'btn small dashed', type: 'button', onclick: () => { helped = true; drawStuck(1); } }, 'Show a hint'));
+    } else if (stage === 1) {
+      put(stuck,
+        h('div', { class: 'hint' }, h('span', { class: 'n' }, 'Hint'), rich(d.hint)),
+        h('button', { class: 'btn small', type: 'button', onclick: () => drawStuck(2) }, 'Show the answer'));
+    } else {
+      helped = true;
+      if (!recorded) { recordDrill(d, false); recorded = true; }
+      put(stuck,
+        h('div', { class: 'hint' }, h('span', { class: 'n' }, 'Hint'), rich(d.hint)),
+        h('p', { class: 'note' }, 'Read it, then clear the editor and type it from memory. It comes back tomorrow.'),
+        h('div', { class: 'code-box' }, h('pre', { class: 'code-static' }, d.solution)));
+    }
+  };
+  drawStuck(0);
+
+  const st = state.drills[d.id];
+  put(app,
+    topbar(id ? 'Pattern drill' : `Pattern drills · ${queue.length} left today`),
+    h('header', { class: 'stack-sm' },
+      h('span', { class: 'eyebrow' }, d.pattern),
+      h('h1', { class: 'h-title' }, d.title),
+      h('div', { class: 'tags' },
+        h('span', { class: 'tag mono' }, 'C++'),
+        h('span', { class: 'tag' }, 'Empty file'),
+        st && st.best ? h('span', { class: 'tag' }, 'Best ' + fmtTime(st.best)) : null)),
+    h('p', { class: 'soft' }, rich(d.prompt)),
+    h('div', null,
+      h('div', { class: 'output-label' }, h('span', null, 'Expected output'), h('span', null, sample.stdin ? 'for the input ' + sample.stdin.replace(/\n/g, ' ') : '')),
+      h('pre', { class: 'output expected' }, sample.expected)),
+    h('div', { class: 'code-box' },
+      h('div', { class: 'code-head' }, h('span', null, 'main.cpp'),
+        h('button', { class: 'btn small ghost', type: 'button', onclick: () => { ed.value = ''; } }, 'Clear')),
+      ed.parts),
+    stdin ? h('div', null, h('label', { class: 'field-label', for: 'stdin' }, 'Input for Run (what std::cin reads)'), stdin) : null,
+    h('div', { class: 'btn-row' }, runBtn, checkBtn),
+    results,
+    h('section', { class: 'stack' }, h('h2', { class: 'h-section' }, 'Stuck?'), stuck));
+}
+
 function viewProgress() {
   const solved = Object.keys(state.done).filter((id) => challengeById[id]);
   const clean = solved.filter((id) => !state.done[id].usedSolution).length;
   const lessonsDone = Object.keys(state.lessons).filter((id) => lessonById[id]).length;
+  const drillEntries = allDrills.map((d) => state.drills[d.id]).filter(Boolean);
+  const mastered = drillEntries.filter((e) => e.box >= MASTERED_BOX).length;
   const msg = h('p', { class: 'note', 'aria-live': 'polite' });
   const resetBox = h('div', { class: 'stack-sm' });
 
@@ -661,7 +930,17 @@ function viewProgress() {
       h('div', { class: 'stat' }, h('b', null, `${lessonsDone}/${allLessons.length}`), h('span', null, 'lessons finished')),
       h('div', { class: 'stat' }, h('b', null, `${solved.length}/${allChallenges.length}`), h('span', null, 'challenges solved')),
       h('div', { class: 'stat' }, h('b', null, clean), h('span', null, 'solved without the solution')),
-      h('div', { class: 'stat' }, h('b', null, Object.keys(state.review).filter((id) => challengeById[id]).length), h('span', null, 'in the review queue'))),
+      h('div', { class: 'stat' }, h('b', null, Object.keys(state.review).filter((id) => challengeById[id]).length), h('span', null, 'in the review queue')),
+      h('div', { class: 'stat' }, h('b', null, `${drillEntries.length}/${allDrills.length}`), h('span', null, 'patterns practised')),
+      h('div', { class: 'stat' }, h('b', null, mastered), h('span', null, 'patterns mastered'))),
+    h('section', { class: 'stack' },
+      h('h2', { class: 'h-section' }, 'Practice'),
+      h('label', { class: 'item toggle', for: 'blank-toggle' },
+        h('span', { class: 'grow' }, 'Always start from a blank file',
+          h('div', { class: 'sub' }, 'Every challenge opens empty, with a planning step first, however much starter code it normally gives.')),
+        h('input', { type: 'checkbox', id: 'blank-toggle', class: 'switch', checked: state.settings.blank,
+          onchange: (e) => { state.settings.blank = e.target.checked; save(); } })),
+      h('p', { class: 'note' }, `A pattern counts as mastered after ${MASTERED_BOX + 1} clean passes in a row, each on a later day than the last.`)),
     h('section', { class: 'stack' },
       h('h2', { class: 'h-section' }, 'Backup'),
       h('p', { class: 'note' }, 'Progress is stored on this device only. Export a backup to move it to another phone or computer, then import it there.'),
@@ -689,10 +968,12 @@ function drawTabs(current) {
 
 function render() {
   const [route, arg] = location.hash.replace(/^#\/?/, '').split('/');
-  const full = route === 'lesson' || route === 'challenge';
+  const full = ['lesson', 'challenge', 'drill', 'drills'].includes(route);
   document.body.classList.toggle('no-tabs', full);
   if (route === 'lesson') viewLesson(arg);
   else if (route === 'challenge') viewChallenge(arg);
+  else if (route === 'drills') viewDrill();
+  else if (route === 'drill') viewDrill(arg);
   else if (route === 'track') viewTrack();
   else if (route === 'progress') viewProgress();
   else viewToday();
